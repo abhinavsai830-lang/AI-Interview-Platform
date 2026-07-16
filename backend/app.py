@@ -1,4 +1,8 @@
+import base64
+
 from flask import Flask,request
+import requests
+import json
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -21,6 +25,41 @@ agent=create_agent(
     tools=[],
     checkpointer=checkpointer
 )
+MURF_API_KEY = os.getenv("MURF_API_KEY")
+def stream_audio(text): #Generator
+        url = "https://global.api.murf.ai/v1/speech/stream"
+        headers = {
+            "api-key": MURF_API_KEY,
+            "Content-Type": "application/json"
+        }
+        data = {
+        "voice_id": "Natalie",
+        "style": "Conversation",
+        "text": text,
+        "locale": "en-US",
+        "model": "FALCON",
+        "format": "MP3",
+        "sampleRate": 24000,
+        "channelType": "MONO"
+        }
+
+        response = requests.post(
+             url, 
+             headers=headers, 
+             json=data, 
+             stream=True
+             )
+
+        if response.status_code == 200:
+            
+                for chunk in response.iter_content(chunk_size=4096):
+                    if chunk:
+                        yield base64.b64encode(chunk).decode('utf-8') + "\n" 
+                        
+            
+        else:
+            print(f"Error: {response.status_code}")
+
 
 current_subject=""
 question_count=0
@@ -69,7 +108,8 @@ def start_interview():
                     {'role':"user","content":"Start the interview with warm greeting and ask the first question about {current_subject}.Keep it SHORT and CRISP (1-2 sentences)."}],
     },config=config)
     question=response['messages'][-1].content
-    print("First Question:", question)
+    return stream_audio(question),{'Content-Type': 'text/plain'}
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
