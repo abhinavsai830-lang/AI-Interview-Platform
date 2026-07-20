@@ -156,6 +156,7 @@ function resetToWelcome() {
 
 function handleAudioStream(response, onComplete) {
     const reader = response.body.getReader();
+     let streamFinished = false;
     const decoder = new TextDecoder();
     let mediaSource = new MediaSource();
     let audioUrl = URL.createObjectURL(mediaSource);
@@ -174,25 +175,37 @@ function handleAudioStream(response, onComplete) {
         currentAudio = null;
     }
     currentAudio = new Audio(audioUrl);
-    currentAudio.play().catch(() => {});
+    //currentAudio.play().catch(() => {});
 
     mediaSource.addEventListener("sourceopen", () => {
         sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg");
+         currentAudio.play().catch(() => {});
+
         isSourceBufferReady = true;
         while (queue.length > 0 && !sourceBuffer.updating) {
             sourceBuffer.appendBuffer(queue.shift());
         }
         sourceBuffer.addEventListener("updateend", () => {
-            if (queue.length > 0 && !sourceBuffer.updating) {
-                sourceBuffer.appendBuffer(queue.shift());
-            }
+            if (queue.length > 0) {
+                        sourceBuffer.appendBuffer(queue.shift());
+
+            }else if (
+                 streamFinished &&
+                 mediaSource.readyState === "open"
+    ) {
+
+        mediaSource.endOfStream();
+
+    }
         });
     });
 
     function processChunk({ done, value }) {
         console.log("Processing chunk:", value, done);
         if (done) {
-            if (mediaSource.readyState === "open") {
+            streamFinished = true;
+            if (mediaSource.readyState === "open" && queue.length === 0 &&
+            !sourceBuffer.updating) {
                 try {
                     mediaSource.endOfStream();
                 } catch (e) {}
@@ -293,7 +306,7 @@ function stopRecording() {
 
 // ========== API FUNCTIONS ==========
 
-const startInterviewApiUrl = " http://127.0.0.1:5000/start-interview";
+const startInterviewApiUrl = "http://127.0.0.1:5000/start-interview";
 
 
 async function startInterview() {
@@ -328,8 +341,7 @@ async function startInterview() {
     }
 }
 
-const submitAnswerApiUrl = "YOUR_SUBMIT_ANSWER_API_ENDPOINT_HERE";
-
+const submitAnswerApiUrl = "http://127.0.0.1:5000/submit-answer";
 
 async function submitAnswer() {
     if (!recordedBlob) return;
@@ -401,7 +413,7 @@ async function endInterview() {
     await getFeedback();
 }
 
-const getFeedbackApiUrl = "YOUR_GET_FEEDBACK_API_ENDPOINT_HERE";
+const getFeedbackApiUrl = "http://127.0.0.1:5000/get-feedback";
 
 async function getFeedback() {
     showFeedbackSection();
