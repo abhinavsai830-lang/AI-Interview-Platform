@@ -21,7 +21,10 @@ An AI-powered interview preparation platform that conducts technical interviews 
 - Flask
 - Python
 - LangChain
+- AI Agent
+- LangGraph
 - Groq LLM
+  
 
 ## Future Improvements
 
