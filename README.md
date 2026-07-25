@@ -18,7 +18,7 @@ An AI-powered interview preparation platform that conducts technical interviews 
 - JavaScript
 
 ### Backend
-- Flask
+- FastApi
 - Python
 - LangChain
 - AI Agent
