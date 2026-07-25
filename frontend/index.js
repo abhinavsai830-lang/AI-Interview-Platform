@@ -46,6 +46,7 @@ const iconMap = {
 
 
 // ========== UI STATE FUNCTIONS ==========
+const BASE_URL = "http://127.0.0.1:8000";
 
 function showInterviewPanel(subject) {
     currentSubject = subject;
@@ -272,10 +273,25 @@ function startRecording() {
             }
         };
         
-        mediaRecorder.onstop = () => {
-            recordedBlob = new Blob(recordingChunks, { type: "audio/webm" });
-            stream.getTracks().forEach((track) => track.stop());
+        mediaRecorder.onstop=()=>{
+            recordedBlob=new Blob(
+                recordingChunks,
+                {type:"audio/webm"}
+            );
+        stream.getTracks().forEach(track=>track.stop());
+        recordBtn.classList.remove(
+            "bg-red-500",
+            "text-white",
+            "recording-active"
+        );
+        recordBtn.classList.add("bg-zinc-800/80", "text-gray-400");
+        micIcon.classList.remove("hidden");
+        stopIcon.classList.add("hidden");
+        recordingStatus.textContent = "Recording complete";
+        submitBtn.classList.remove("hidden");
+        submitBtn.disabled = false;
         };
+        
 
         mediaRecorder.start();
         
@@ -290,23 +306,17 @@ function startRecording() {
 }
 
 function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-        
-        recordBtn.classList.remove("bg-red-500", "text-white", "recording-active");
-        recordBtn.classList.add("bg-zinc-800/80", "text-gray-400");
-        micIcon.classList.remove("hidden");
-        stopIcon.classList.add("hidden");
-        recordingStatus.textContent = "Recording complete";
-        submitBtn.classList.remove("hidden");
-        submitBtn.disabled = false;
-    }
+  if(!mediaRecorder) return;
+  if (mediaRecorder.state=='inactive')return;
+  recordingStatus.textContent="Processing recording...";
+  submitBtn.disabled=true;
+  mediaRecorder.stop();
 }
 
 
 // ========== API FUNCTIONS ==========
 
-const startInterviewApiUrl = "http://127.0.0.1:5000/start-interview";
+const startInterviewApiUrl = `${BASE_URL}/start-interview`;
 
 
 async function startInterview() {
@@ -341,10 +351,13 @@ async function startInterview() {
     }
 }
 
-const submitAnswerApiUrl = "http://127.0.0.1:5000/submit-answer";
+const submitAnswerApiUrl = `${BASE_URL}/submit-answer`;
 
 async function submitAnswer() {
-    if (!recordedBlob) return;
+    if (!recordedBlob){
+        alert("Recording is still processing.");
+        return ;
+    }
 
     disableRecording();
     recordingStatus.textContent = "Submitting...";
@@ -371,19 +384,22 @@ async function submitAnswer() {
                 recordedBlob = null;
                 recordingChunks = [];
                 
-                if (isComplete) {
-                    currentAudio.onended = () => {
-                        isSpeaking = false;
-                        hideSpeakingBubble();
-                        showFeedbackSection();
-                    };
-                } else {
-                    endInterviewBtn.disabled = false;
+                const previousHandler = currentAudio.onended;
+
+                currentAudio.onended = () => {
+                previousHandler?.();
+
+                 if(isComplete){
+                  showFeedbackSection();
                 }
+                };
             });
         } else {
+            if (!response.ok) {
+                throw new Error("Backend Error");
+                    }
+
             const data = await response.json();
-            console.log("Response:", data);
             recordedBlob = null;
             recordingChunks = [];
             
@@ -413,8 +429,7 @@ async function endInterview() {
     await getFeedback();
 }
 
-const getFeedbackApiUrl = "http://127.0.0.1:5000/get-feedback";
-
+const getFeedbackApiUrl =`${BASE_URL}/get-feedback`;
 async function getFeedback() {
     showFeedbackSection();
     getFeedbackBtn.textContent = "Generating...";
