@@ -7,6 +7,9 @@ let recordedBlob = null;
 let currentSubject = null;
 let isSpeaking = false;
 let currentAudio = null;
+let authMode = "login";
+let authToken = localStorage.getItem("authToken");
+let currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
 
 // DOM Elements
 const welcomeState = document.getElementById("welcomeState");
@@ -34,6 +37,17 @@ const feedbackText = document.getElementById("feedbackText");
 const improvementText = document.getElementById("improvementText");
 const newInterviewBtn = document.getElementById("newInterviewBtn");
 
+const authForms = document.getElementById("authForms");
+const authTitle = document.getElementById("authTitle");
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+const authMessage = document.getElementById("authMessage");
+const authSubmitBtn = document.getElementById("authSubmitBtn");
+const toggleAuthModeBtn = document.getElementById("toggleAuthModeBtn");
+const userPanel = document.getElementById("userPanel");
+const currentUserEmail = document.getElementById("currentUserEmail");
+const logoutBtn = document.getElementById("logoutBtn");
+
 // Subject Icons Map
 const iconMap = {
     "Self Introduction": "fas fa-user text-blue-400",
@@ -47,6 +61,85 @@ const iconMap = {
 
 // ========== UI STATE FUNCTIONS ==========
 const BASE_URL = "http://127.0.0.1:8000";
+
+
+
+function authHeaders(headers = {}) {
+    return authToken ? { ...headers, Authorization: `Bearer ${authToken}` } : headers;
+}
+
+function setAuthMessage(message, isError = false) {
+    authMessage.textContent = message;
+    authMessage.classList.remove("hidden", "text-red-400", "text-green-400");
+    authMessage.classList.add(isError ? "text-red-400" : "text-green-400");
+}
+
+function renderAuthState() {
+    if (authToken && currentUser) {
+        authForms.classList.add("hidden");
+        userPanel.classList.remove("hidden");
+        currentUserEmail.textContent = currentUser.email;
+        return;
+    }
+
+    authForms.classList.remove("hidden");
+    userPanel.classList.add("hidden");
+    authTitle.textContent = authMode === "login" ? "Login" : "Register";
+    authSubmitBtn.textContent = authMode === "login" ? "Login" : "Create Account";
+    toggleAuthModeBtn.textContent = authMode === "login" ? "Need an account? Register" : "Already have an account? Login";
+}
+
+function requireAuth() {
+    if (authToken) return true;
+    setAuthMessage("Please login or register before starting an interview.", true);
+    return false;
+}
+
+async function submitAuth() {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!email || !password) {
+        setAuthMessage("Email and password are required.", true);
+        return;
+    }
+
+    authSubmitBtn.disabled = true;
+    setAuthMessage(authMode === "login" ? "Logging in..." : "Creating account...");
+
+    try {
+        const response = await fetch(`${BASE_URL}/auth/${authMode}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || "Authentication failed");
+        }
+
+        authToken = data.access_token;
+        currentUser = data.user;
+        localStorage.setItem("authToken", authToken);
+        localStorage.setItem("currentUser", JSON.stringify(currentUser));
+        authPassword.value = "";
+        renderAuthState();
+    } catch (error) {
+        setAuthMessage(error.message, true);
+    } finally {
+        authSubmitBtn.disabled = false;
+    }
+}
+
+function logout() {
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("currentUser");
+    resetToWelcome();
+    renderAuthState();
+}
+
+
 
 function showInterviewPanel(subject) {
     currentSubject = subject;
@@ -327,8 +420,7 @@ async function startInterview() {
     try {
         const response = await fetch(startInterviewApiUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ subject: currentSubject })
+            headers: authHeaders({ "Content-Type": "application/json" }),            body: JSON.stringify({ subject: currentSubject })
         });
         
         const contentType = response.headers.get("content-type");
@@ -368,6 +460,7 @@ async function submitAnswer() {
     try {
         const response = await fetch(submitAnswerApiUrl, {
             method: "POST",
+            headers: authHeaders(),
             body: formData
         });
         
@@ -438,7 +531,7 @@ async function getFeedback() {
     try {
         const response = await fetch(getFeedbackApiUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({})
         });
         
@@ -458,6 +551,7 @@ async function getFeedback() {
 
 subjectBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
+        if (!requireAuth()) return;
         if (currentSubject === btn.dataset.subject) return;
         resetToWelcome();
         showInterviewPanel(btn.dataset.subject);
@@ -480,3 +574,12 @@ submitBtn.addEventListener("click", submitAnswer);
 endInterviewBtn.addEventListener("click", endInterview);
 getFeedbackBtn.addEventListener("click", getFeedback);
 newInterviewBtn.addEventListener("click", resetToWelcome);
+
+toggleAuthModeBtn.addEventListener("click", () => {
+    authMode = authMode === "login" ? "register" : "login";
+    authMessage.classList.add("hidden");
+    renderAuthState();
+});
+authSubmitBtn.addEventListener("click", submitAuth);
+logoutBtn.addEventListener("click", logout);
+renderAuthState();
