@@ -1,6 +1,7 @@
 import tempfile
 import traceback 
 import uuid
+from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import UploadFile
 from fastapi import File
@@ -18,6 +19,12 @@ import requests
 import json
 import assemblyai as aai
 
+from .auth import get_current_user
+from .database import Base, engine
+from .models import User
+from .routes.auth import router as auth_router
+
+
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MURF_API_KEY = os.getenv("MURF_API_KEY")
@@ -30,6 +37,11 @@ app=FastAPI(
     title="AI Interviewer Platform",
     version='1.0.0'
 )
+
+Base.metadata.create_all(bind=engine)
+app.include_router(auth_router)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -59,7 +71,21 @@ class InterviewSession():
         self.question_count = 0
         self.current_subject = ""
         self.thread_id = "interview_session"
-session = InterviewSession()
+        self.checkpointer = InMemorySaver()
+        self.agent = create_agent(
+            model=model,
+            tools=[],
+            checkpointer=self.checkpointer
+        )
+
+
+user_sessions: dict[int, InterviewSession] = {}
+
+
+def get_user_session(user: User) -> InterviewSession:
+    if user.id not in user_sessions:
+        user_sessions[user.id] = InterviewSession()
+    return user_sessions[user.id]        
 class InterviewRequest(BaseModel):
     subject: str
 
@@ -127,20 +153,20 @@ def stream_audio(text:str):
 
 
 @app.post("/start-interview")
-def start_interview(data: InterviewRequest):
-    global agent, checkpointer
+def start_interview(data: InterviewRequest, current_user: User = Depends(get_current_user)):
+    session = get_user_session(current_user)
     session.thread_id = str(uuid.uuid4())#every time press start interview new thread will be created
     session.current_subject = data.subject
     session.question_count = 1
-    checkpointer = InMemorySaver()
-    agent = create_agent(
+    session.checkpointer = InMemorySaver()
+    session.agent = create_agent(
         model=model,
         tools=[],
-        checkpointer=checkpointer
+        checkpointer=session.checkpointer
     )
     config = {"configurable": {"thread_id": session.thread_id}}
     formatted_prompt = INTERVIEW_PROMPT.format(subject=session.current_subject)
-    response = agent.invoke({
+    response = session.agent.invoke({
         "messages": [
             {"role": "system", "content": formatted_prompt},
             {"role": "user", "content": f"Start the interview with a warm greeting and ask the first question about {session.current_subject}. Keep it SHORT (1-2 sentences)."}
@@ -177,7 +203,8 @@ def speech_to_text(audio_path:str)->str:
 
 
 @app.post("/submit-answer")
-async def submit_answer(audio:UploadFile=File(...)):
+async def submit_answer(audio:UploadFile=File(...), current_user: User = Depends(get_current_user)):
+    session = get_user_session(current_user)
     temp_path=(tempfile.NamedTemporaryFile(
         delete=False, 
         suffix=".webm"
@@ -195,7 +222,7 @@ async def submit_answer(audio:UploadFile=File(...)):
     if not answer:
         answer = "Empty Text Recived"
     config = {"configurable": {"thread_id": session.thread_id}}
-    agent.invoke({"messages":[{"role":"user","content":answer}]},config=config)
+    session.agent.invoke({"messages":[{"role":"user","content":answer}]},config=config)
     session.question_count += 1
     if session.question_count > 5:
         closing_message=(
@@ -221,7 +248,7 @@ async def submit_answer(audio:UploadFile=File(...)):
             3. If they said "I don't know" or gave a wrong answer, acknowledge that and ask something simpler
             4. Keep the TOTAL response under 3 sentences
             Be conversational but CONCISE. Only reference what they truly said."""
-    response = agent.invoke(
+    response = session.agent.invoke(
         {
             "messages":[{"role":"user","content":prompt}]
             },config=config)
@@ -236,12 +263,13 @@ async def submit_answer(audio:UploadFile=File(...)):
         }
     )
 @app.post("/get-feedback")
-def get_feedback():
+def get_feedback(current_user: User = Depends(get_current_user)):
+    session = get_user_session(current_user)
     config = {"configurable": {"thread_id": session.thread_id}}
     feedback_prompt = FEEDBACK_PROMPT.format(
     subject=session.current_subject
     )
-    response= agent.invoke(
+    response= session.agent.invoke(
         {
             "messages":[
                 {"role":"user",
@@ -270,7 +298,7 @@ def get_feedback():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "app:app",
+       "backend.app:app",
         host="0.0.0.0",
         port=8000,
         reload=True
