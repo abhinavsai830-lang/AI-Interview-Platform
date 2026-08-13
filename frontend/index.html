@@ -96,6 +96,24 @@
                 <span class="font-space font-bold text-2xl tracking-tight gradient-heading">AI Interview</span>
             </div>
 
+
+            <!-- Auth Panel -->
+            <div class="mb-6 rounded-2xl border border-zinc-800/70 bg-zinc-950/70 p-4">
+                <div id="authForms">
+                    <h3 id="authTitle" class="text-white font-bold mb-3">Login</h3>
+                    <input id="authEmail" type="email" autocomplete="email" placeholder="Email" class="w-full mb-2 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]">
+                    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password" class="w-full mb-3 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]">
+                    <p id="authMessage" class="hidden text-xs mb-3"></p>
+                    <button id="authSubmitBtn" class="w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-lg px-4 py-2 text-sm font-bold">Login</button>
+                    <button id="toggleAuthModeBtn" class="w-full mt-2 text-xs text-zinc-400 hover:text-white" type="button">Need an account? Register</button>
+                </div>
+                <div id="userPanel" class="hidden">
+                    <p class="text-xs uppercase tracking-wider text-zinc-500 mb-1">Signed in as</p>
+                    <p id="currentUserEmail" class="text-sm text-white font-semibold break-all mb-3"></p>
+                    <button id="logoutBtn" class="w-full border border-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm hover:border-red-500/50 hover:text-red-400" type="button">Logout</button>
+                </div>
+            </div>
+
             <!-- Topic Label -->
             <h3 class="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3">Select Topic</h3>
 
