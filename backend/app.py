@@ -29,7 +29,18 @@ from langchain_groq import ChatGroq
 from .auth import get_current_user
 from .schemas import InterviewRequest
 from .database import Base, engine, get_db
-from .models import User, Interview
+
+# ============================================================
+# CHANGED:
+# We now import Question and Answer models as well.
+# ============================================================
+from .models import (
+    User,
+    Interview,
+    InterviewQuestion,
+    InterviewAnswer,
+)
+
 from .routes.auth import router as auth_router
 
 
@@ -107,19 +118,15 @@ class InterviewSession:
 
     def __init__(self):
 
-        # Database interview ID
         self.interview_id = None
 
-        # Interview state
         self.question_count = 0
         self.current_subject = ""
 
-        # Timing
         self.duration_minutes = 0
         self.started_at = None
         self.expires_at = None
 
-        # LangGraph
         self.thread_id = "interview_session"
 
         self.checkpointer = InMemorySaver()
@@ -411,6 +418,22 @@ def start_interview(
 
         question = content
 
+    # ========================================================
+    # NEW:
+    # Save FIRST QUESTION to database
+    # ========================================================
+
+    question_record = InterviewQuestion(
+        interview_id=interview.id,
+        question_number=1,
+        question_text=question,
+        asked_at=datetime.now(timezone.utc)
+    )
+
+    db.add(question_record)
+
+    db.commit()
+
     # --------------------------------------------------------
     # Return first question as audio stream
     # --------------------------------------------------------
@@ -454,7 +477,15 @@ def speech_to_text(audio_path: str) -> str:
 
 @app.post("/submit-answer")
 async def submit_answer(
+
+    # ========================================================
+    # NEW:
+    # Database session is required so we can persist answers.
+    # ========================================================
+    db: Session = Depends(get_db),
+
     audio: UploadFile = File(...),
+
     current_user: User = Depends(get_current_user)
 ):
 
@@ -473,6 +504,59 @@ async def submit_answer(
             media_type="text/plain",
             headers={
                 "X-Question-Number": "0",
+                "X-Interview-Complete": "true"
+            }
+        )
+
+    # ========================================================
+    # NEW:
+    # Load the current interview from the database
+    # ========================================================
+
+    interview = (
+        db.query(Interview)
+        .filter(
+            Interview.id == session.interview_id,
+            Interview.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if not interview:
+
+        return StreamingResponse(
+            stream_audio(
+                "I could not find the current interview."
+            ),
+            media_type="text/plain",
+            headers={
+                "X-Question-Number": "0",
+                "X-Interview-Complete": "true"
+            }
+        )
+
+    # --------------------------------------------------------
+    # Make sure there is a current question
+    # --------------------------------------------------------
+
+    current_question = (
+        db.query(InterviewQuestion)
+        .filter(
+            InterviewQuestion.interview_id == interview.id,
+            InterviewQuestion.question_number == session.question_count
+        )
+        .first()
+    )
+
+    if not current_question:
+
+        return StreamingResponse(
+            stream_audio(
+                "I could not find the current interview question."
+            ),
+            media_type="text/plain",
+            headers={
+                "X-Question-Number": str(session.question_count),
                 "X-Interview-Complete": "true"
             }
         )
@@ -514,6 +598,29 @@ async def submit_answer(
 
         answer = "Empty Text Received"
 
+    # ========================================================
+    # NEW:
+    # Calculate word count
+    # ========================================================
+
+    word_count = len(answer.split())
+
+    # ========================================================
+    # NEW:
+    # Save candidate answer to database
+    # ========================================================
+
+    answer_record = InterviewAnswer(
+        question_id=current_question.id,
+        transcript=answer,
+        word_count=word_count,
+        answered_at=datetime.now(timezone.utc)
+    )
+
+    db.add(answer_record)
+
+    db.commit()
+
     # --------------------------------------------------------
     # Add candidate answer to LangGraph memory
     # --------------------------------------------------------
@@ -543,7 +650,6 @@ async def submit_answer(
     session.question_count += 1
 
     # ========================================================
-    # IMPORTANT:
     # TIME-BASED COMPLETION
     # ========================================================
 
@@ -570,7 +676,7 @@ async def submit_answer(
     # Generate the next question
     # --------------------------------------------------------
 
-    prompt = f"""
+    prompt = """
 The candidate just answered the previous interview question.
 
 Look at their ACTUAL answer above.
@@ -608,6 +714,22 @@ Be conversational and adaptive.
     )
 
     question = response["messages"][-1].content
+
+    # ========================================================
+    # NEW:
+    # Save the newly generated question to database
+    # ========================================================
+
+    next_question_record = InterviewQuestion(
+        interview_id=interview.id,
+        question_number=session.question_count,
+        question_text=question,
+        asked_at=datetime.now(timezone.utc)
+    )
+
+    db.add(next_question_record)
+
+    db.commit()
 
     # --------------------------------------------------------
     # Return next question
