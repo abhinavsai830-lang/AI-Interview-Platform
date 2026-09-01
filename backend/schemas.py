@@ -1,7 +1,7 @@
 from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field
 
-from pydantic import BaseModel, EmailStr
-
+# ---------- Authentication ----------
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -26,3 +26,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserRead
+
+
+# ---------- Interview ----------
+
+class InterviewRequest(BaseModel):
+    subject: str
+    duration_minutes: int = Field(
+        ge=1,
+        le=60,
+        description="Interview duration in minutes"
+    )
