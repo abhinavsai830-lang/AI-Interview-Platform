@@ -17,9 +17,7 @@ from fastapi import File
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from pydantic import BaseModel
 from dotenv import load_dotenv
-
 from sqlalchemy.orm import Session
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -30,10 +28,6 @@ from .auth import get_current_user
 from .schemas import InterviewRequest
 from .database import Base, engine, get_db
 
-# ============================================================
-# CHANGED:
-# We now import Question and Answer models as well.
-# ============================================================
 from .models import (
     User,
     Interview,
@@ -138,7 +132,6 @@ class InterviewSession:
         )
 
 
-# Stores active sessions in memory
 user_sessions: dict[int, InterviewSession] = {}
 
 
@@ -156,10 +149,9 @@ def get_user_session(user: User) -> InterviewSession:
 
 def is_interview_expired(session: InterviewSession) -> bool:
     """
-    Checks whether the current interview has reached its
-    expiration time.
+    Returns True when the interview has reached its deadline.
 
-    The backend is the source of truth for interview timing.
+    The backend is the authoritative source of interview time.
     """
 
     if session.expires_at is None:
@@ -168,6 +160,35 @@ def is_interview_expired(session: InterviewSession) -> bool:
     now = datetime.now(timezone.utc)
 
     return now >= session.expires_at
+
+
+# ============================================================
+# COMPLETE INTERVIEW
+# ============================================================
+# ================= NEW =================
+# Centralized interview completion logic.
+# ============================================================
+
+def complete_interview(
+    db: Session,
+    interview: Interview
+):
+    """
+    Mark the interview as completed.
+
+    This function prevents repeated completion updates.
+    """
+
+    if interview.status == "completed":
+        return
+
+    interview.status = "completed"
+
+    interview.ended_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    db.refresh(interview)
 
 
 # ============================================================
@@ -261,7 +282,7 @@ Reference ACTUAL things the candidate said during the interview.
 
 
 # ============================================================
-# MURF TEXT-TO-SPEECH STREAM
+# MURF TEXT TO SPEECH
 # ============================================================
 
 def stream_audio(text: str):
@@ -294,6 +315,7 @@ def stream_audio(text: str):
     for chunk in response.iter_content(chunk_size=4096):
 
         if chunk:
+
             yield base64.b64encode(chunk).decode("utf-8") + "\n"
 
 
@@ -303,9 +325,13 @@ def stream_audio(text: str):
 
 @app.post("/start-interview")
 def start_interview(
+
     data: InterviewRequest,
+
     db: Session = Depends(get_db),
+
     current_user: User = Depends(get_current_user)
+
 ):
 
     session = get_user_session(current_user)
@@ -321,16 +347,23 @@ def start_interview(
     )
 
     # --------------------------------------------------------
-    # Save interview to database
+    # Save interview
     # --------------------------------------------------------
 
     interview = Interview(
+
         user_id=current_user.id,
+
         subject=data.subject,
+
         duration_minutes=data.duration_minutes,
+
         started_at=start_time,
+
         expires_at=end_time,
+
         status="active"
+
     )
 
     db.add(interview)
@@ -340,7 +373,7 @@ def start_interview(
     db.refresh(interview)
 
     # --------------------------------------------------------
-    # Store active interview information
+    # Store active interview
     # --------------------------------------------------------
 
     session.interview_id = interview.id
@@ -352,7 +385,7 @@ def start_interview(
     session.expires_at = end_time
 
     # --------------------------------------------------------
-    # Create a new LangGraph thread
+    # New LangGraph thread
     # --------------------------------------------------------
 
     session.thread_id = str(uuid.uuid4())
@@ -384,12 +417,15 @@ def start_interview(
     )
 
     response = session.agent.invoke(
+
         {
             "messages": [
+
                 {
                     "role": "system",
                     "content": formatted_prompt
                 },
+
                 {
                     "role": "user",
                     "content": (
@@ -399,8 +435,10 @@ def start_interview(
                         f"Keep it SHORT."
                     )
                 }
+
             ]
         },
+
         config=config
     )
 
@@ -419,15 +457,19 @@ def start_interview(
         question = content
 
     # ========================================================
-    # NEW:
-    # Save FIRST QUESTION to database
+    # Save first question
     # ========================================================
 
     question_record = InterviewQuestion(
+
         interview_id=interview.id,
+
         question_number=1,
+
         question_text=question,
+
         asked_at=datetime.now(timezone.utc)
+
     )
 
     db.add(question_record)
@@ -435,16 +477,23 @@ def start_interview(
     db.commit()
 
     # --------------------------------------------------------
-    # Return first question as audio stream
+    # Return audio
     # --------------------------------------------------------
 
     return StreamingResponse(
+
         stream_audio(question),
+
         media_type="text/plain",
+
         headers={
+
             "X-Question-Number": "1",
+
             "X-Interview-Complete": "false"
+
         }
+
     )
 
 
@@ -478,30 +527,30 @@ def speech_to_text(audio_path: str) -> str:
 @app.post("/submit-answer")
 async def submit_answer(
 
-    # ========================================================
-    # NEW:
-    # Database session is required so we can persist answers.
-    # ========================================================
     db: Session = Depends(get_db),
 
     audio: UploadFile = File(...),
 
     current_user: User = Depends(get_current_user)
+
 ):
 
     session = get_user_session(current_user)
 
     # --------------------------------------------------------
-    # Make sure an interview actually exists
+    # Check active interview
     # --------------------------------------------------------
 
     if session.interview_id is None:
 
         return StreamingResponse(
+
             stream_audio(
                 "There is no active interview."
             ),
+
             media_type="text/plain",
+
             headers={
                 "X-Question-Number": "0",
                 "X-Interview-Complete": "true"
@@ -510,7 +559,7 @@ async def submit_answer(
 
     # ========================================================
     # NEW:
-    # Load the current interview from the database
+    # Get interview from database
     # ========================================================
 
     interview = (
@@ -525,60 +574,106 @@ async def submit_answer(
     if not interview:
 
         return StreamingResponse(
+
             stream_audio(
                 "I could not find the current interview."
             ),
+
             media_type="text/plain",
+
             headers={
                 "X-Question-Number": "0",
                 "X-Interview-Complete": "true"
             }
         )
 
-    # --------------------------------------------------------
-    # Make sure there is a current question
-    # --------------------------------------------------------
+    # ========================================================
+    # NEW:
+    # Reject answers after interview is already completed.
+    # ========================================================
 
-    current_question = (
-        db.query(InterviewQuestion)
-        .filter(
-            InterviewQuestion.interview_id == interview.id,
-            InterviewQuestion.question_number == session.question_count
-        )
-        .first()
-    )
-
-    if not current_question:
+    if interview.status == "completed":
 
         return StreamingResponse(
+
             stream_audio(
-                "I could not find the current interview question."
+                "This interview has already ended."
             ),
+
             media_type="text/plain",
+
             headers={
-                "X-Question-Number": str(session.question_count),
+                "X-Question-Number": str(
+                    session.question_count
+                ),
                 "X-Interview-Complete": "true"
             }
         )
 
     # --------------------------------------------------------
-    # Save uploaded audio temporarily
+    # Find current question
+    # --------------------------------------------------------
+
+    current_question = (
+
+        db.query(InterviewQuestion)
+
+        .filter(
+
+            InterviewQuestion.interview_id == interview.id,
+
+            InterviewQuestion.question_number ==
+            session.question_count
+
+        )
+
+        .first()
+
+    )
+
+    if not current_question:
+
+        return StreamingResponse(
+
+            stream_audio(
+                "I could not find the current interview question."
+            ),
+
+            media_type="text/plain",
+
+            headers={
+                "X-Question-Number":
+                    str(session.question_count),
+
+                "X-Interview-Complete":
+                    "true"
+            }
+        )
+
+    # --------------------------------------------------------
+    # Save temporary audio
     # --------------------------------------------------------
 
     temp_path = (
+
         tempfile.NamedTemporaryFile(
+
             delete=False,
+
             suffix=".webm"
+
         )
+
     ).name
 
     contents = await audio.read()
 
     with open(temp_path, "wb") as f:
+
         f.write(contents)
 
     # --------------------------------------------------------
-    # Convert speech to text
+    # Speech to text
     # --------------------------------------------------------
 
     try:
@@ -588,10 +683,11 @@ async def submit_answer(
     finally:
 
         if os.path.exists(temp_path):
+
             os.unlink(temp_path)
 
     # --------------------------------------------------------
-    # Handle empty transcript
+    # Empty transcript
     # --------------------------------------------------------
 
     if not answer:
@@ -599,22 +695,21 @@ async def submit_answer(
         answer = "Empty Text Received"
 
     # ========================================================
-    # NEW:
-    # Calculate word count
+    # Save answer
     # ========================================================
 
     word_count = len(answer.split())
 
-    # ========================================================
-    # NEW:
-    # Save candidate answer to database
-    # ========================================================
-
     answer_record = InterviewAnswer(
+
         question_id=current_question.id,
+
         transcript=answer,
+
         word_count=word_count,
+
         answered_at=datetime.now(timezone.utc)
+
     )
 
     db.add(answer_record)
@@ -622,59 +717,101 @@ async def submit_answer(
     db.commit()
 
     # --------------------------------------------------------
-    # Add candidate answer to LangGraph memory
+    # Add answer to LangGraph
     # --------------------------------------------------------
 
     config = {
+
         "configurable": {
+
             "thread_id": session.thread_id
+
         }
+
     }
 
     session.agent.invoke(
+
         {
+
             "messages": [
+
                 {
+
                     "role": "user",
+
                     "content": answer
+
                 }
+
             ]
+
         },
+
         config=config
+
     )
 
-    # --------------------------------------------------------
-    # Move to next question number
-    # --------------------------------------------------------
-
-    session.question_count += 1
-
     # ========================================================
-    # TIME-BASED COMPLETION
+    # IMPORTANT TIMEOUT LOGIC
+    # ========================================================
+    #
+    # We check expiration ONLY AFTER the answer has been
+    # successfully transcribed and saved.
+    #
+    # This means:
+    #
+    # Timer reaches 00:00
+    # Candidate keeps speaking
+    # Candidate finishes
+    # Answer is saved
+    # THEN interview is completed
+    #
+    # We NEVER interrupt the candidate here.
     # ========================================================
 
     if is_interview_expired(session):
 
+        # ================= NEW =================
+        # Persist completed status.
+        complete_interview(
+            db,
+            interview
+        )
+
         closing_message = (
+
             "Your interview time has ended. "
+
             "Thank you for participating. "
+
             "I'll now prepare your feedback."
+
         )
 
         return StreamingResponse(
+
             stream_audio(closing_message),
+
             media_type="text/plain",
+
             headers={
+
                 "X-Question-Number": str(
-                    session.question_count - 1
+                    session.question_count
                 ),
+
                 "X-Interview-Complete": "true"
+
             }
+
         )
 
     # --------------------------------------------------------
-    # Generate the next question
+    # Prepare next question
     # --------------------------------------------------------
+
+    session.question_count += 1
 
     prompt = """
 The candidate just answered the previous interview question.
@@ -702,29 +839,43 @@ Be conversational and adaptive.
 """
 
     response = session.agent.invoke(
+
         {
+
             "messages": [
+
                 {
+
                     "role": "user",
+
                     "content": prompt
+
                 }
+
             ]
+
         },
+
         config=config
+
     )
 
     question = response["messages"][-1].content
 
     # ========================================================
-    # NEW:
-    # Save the newly generated question to database
+    # Save next question
     # ========================================================
 
     next_question_record = InterviewQuestion(
+
         interview_id=interview.id,
+
         question_number=session.question_count,
+
         question_text=question,
+
         asked_at=datetime.now(timezone.utc)
+
     )
 
     db.add(next_question_record)
@@ -736,15 +887,112 @@ Be conversational and adaptive.
     # --------------------------------------------------------
 
     return StreamingResponse(
+
         stream_audio(question),
+
         media_type="text/plain",
+
         headers={
-            "X-Question-Number": str(
-                session.question_count
-            ),
-            "X-Interview-Complete": "false"
+
+            "X-Question-Number":
+                str(session.question_count),
+
+            "X-Interview-Complete":
+                "false"
+
         }
+
     )
+
+
+# ============================================================
+# MANUAL END INTERVIEW
+# ============================================================
+# ================= NEW =================
+# Dedicated endpoint for gracefully ending an interview.
+# ============================================================
+
+@app.post("/end-interview")
+def end_interview(
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(get_current_user)
+
+):
+
+    session = get_user_session(current_user)
+
+    # --------------------------------------------------------
+    # No active interview
+    # --------------------------------------------------------
+
+    if session.interview_id is None:
+
+        return {
+            "success": False,
+            "message": "No active interview."
+        }
+
+    # --------------------------------------------------------
+    # Find interview
+    # --------------------------------------------------------
+
+    interview = (
+
+        db.query(Interview)
+
+        .filter(
+
+            Interview.id == session.interview_id,
+
+            Interview.user_id == current_user.id
+
+        )
+
+        .first()
+
+    )
+
+    if not interview:
+
+        return {
+            "success": False,
+            "message": "Interview not found."
+        }
+
+    # --------------------------------------------------------
+    # Already completed
+    # --------------------------------------------------------
+
+    if interview.status == "completed":
+
+        return {
+            "success": True,
+            "message": "Interview ended successfully.",
+            "interview_id": interview.id,
+            "status": interview.status,
+            "ended_at": interview.ended_at
+        }
+
+    # ========================================================
+    # Complete interview
+    # ========================================================
+
+    complete_interview(
+        db,
+        interview
+    )
+
+    return {
+
+        "success": True,
+
+        "message": "Interview ended successfully.",
+
+        "interview_id": interview.id
+
+    }
 
 
 # ============================================================
@@ -753,37 +1001,61 @@ Be conversational and adaptive.
 
 @app.post("/get-feedback")
 def get_feedback(
+
     current_user: User = Depends(get_current_user)
+
 ):
 
     session = get_user_session(current_user)
 
     config = {
+
         "configurable": {
+
             "thread_id": session.thread_id
+
         }
+
     }
 
     feedback_prompt = FEEDBACK_PROMPT.format(
+
         subject=session.current_subject
+
     )
 
     response = session.agent.invoke(
+
         {
+
             "messages": [
+
                 {
+
                     "role": "user",
+
                     "content": (
+
                         f"{feedback_prompt}\n"
+
                         f"Review the entire interview on "
+
                         f"{session.current_subject} "
+
                         f"and provide specific, detailed feedback "
+
                         f"based on their ACTUAL answers."
+
                     )
+
                 }
+
             ]
+
         },
+
         config=config
+
     )
 
     text = response["messages"][-1].content
@@ -795,27 +1067,37 @@ def get_feedback(
     cleaned = text.strip()
 
     # --------------------------------------------------------
-    # Remove <think>...</think>
+    # Remove think blocks
     # --------------------------------------------------------
 
     cleaned = re.sub(
+
         r"<think>.*?</think>",
+
         "",
+
         cleaned,
+
         flags=re.DOTALL
+
     ).strip()
 
     # --------------------------------------------------------
-    # Remove markdown code fences
+    # Remove markdown fences
     # --------------------------------------------------------
 
     if "```" in cleaned:
 
         cleaned = (
+
             cleaned
+
             .split("```")[1]
+
             .replace("json", "")
+
             .strip()
+
         )
 
     # --------------------------------------------------------
@@ -827,15 +1109,21 @@ def get_feedback(
         feedback = json.loads(cleaned)
 
         return {
+
             "success": True,
+
             "feedback": feedback
+
         }
 
     except json.JSONDecodeError:
 
         return {
+
             "success": False,
+
             "message": "Invalid feedback generated."
+
         }
 
 
@@ -848,8 +1136,13 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
+
         "backend.app:app",
+
         host="0.0.0.0",
+
         port=8000,
+
         reload=True
+
     )

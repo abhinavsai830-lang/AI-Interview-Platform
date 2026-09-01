@@ -420,7 +420,12 @@ async function startInterview() {
     try {
         const response = await fetch(startInterviewApiUrl, {
             method: "POST",
-            headers: authHeaders({ "Content-Type": "application/json" }),            body: JSON.stringify({ subject: currentSubject })
+            headers: authHeaders({ "Content-Type": "application/json" }),            
+            body: JSON.stringify({ 
+                subject: currentSubject,
+                duration_minutes:1
+
+             })
         });
         
         const contentType = response.headers.get("content-type");
@@ -511,15 +516,84 @@ async function submitAnswer() {
 }
 
 
+// ================= NEW =================
+// Backend endpoint used to persist manual interview completion
+const endInterviewApiUrl = `${BASE_URL}/end-interview`;
+// ============================================================
+// END INTERVIEW
+// ============================================================
 
 async function endInterview() {
-    if (!confirm("End interview and get feedback?")) return;
+
+    if (!confirm("End interview and get feedback?")) {
+        return;
+    }
 
     disableRecording();
+
     endInterviewBtn.disabled = true;
+
     recordingStatus.textContent = "Ending interview...";
-    
-    await getFeedback();
+
+    try {
+
+        // ========================================================
+        // NEW:
+        // First tell the backend that the interview has ended.
+        // This updates:
+        //
+        // status = "completed"
+        // ended_at = current timestamp
+        // ========================================================
+
+        const response = await fetch(
+            endInterviewApiUrl,
+            {
+                method: "POST",
+                headers: authHeaders({
+                    "Content-Type": "application/json"
+                })
+            }
+        );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Failed to end interview."
+            );
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+
+            throw new Error(
+                data.message || "Failed to end interview."
+            );
+        }
+
+        // ========================================================
+        // Interview is now permanently marked as completed.
+        // Only AFTER that do we generate feedback.
+        // ========================================================
+
+        recordingStatus.textContent =
+            "Interview completed. Generating feedback...";
+
+        await getFeedback();
+
+    } catch (error) {
+
+        console.error(
+            "Error ending interview:",
+            error
+        );
+
+        recordingStatus.textContent =
+            "Could not end interview";
+
+        endInterviewBtn.disabled = false;
+    }
 }
 
 const getFeedbackApiUrl =`${BASE_URL}/get-feedback`;
