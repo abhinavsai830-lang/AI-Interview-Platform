@@ -4,10 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>AI Interview Assistant</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
     <script>
         tailwind.config = {
             theme: {
@@ -20,15 +31,24 @@
             }
         }
     </script>
+
     <style>
+
         body {
             font-family: 'Inter', sans-serif;
         }
 
         .subject-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(
+                135deg,
+                #667eea 0%,
+                #764ba2 100%
+            );
+
             border-color: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+
+            box-shadow:
+                0 0 20px rgba(102, 126, 234, 0.4);
         }
 
         .subject-btn:hover:not(.active) {
@@ -40,11 +60,16 @@
         }
 
         @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+
+            0%,
+            100% {
+                box-shadow:
+                    0 0 0 0 rgba(239, 68, 68, 0.5);
             }
+
             70% {
-                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+                box-shadow:
+                    0 0 0 20px rgba(239, 68, 68, 0);
             }
         }
 
@@ -58,271 +83,826 @@
         }
 
         .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(
+                135deg,
+                #667eea 0%,
+                #764ba2 50%,
+                #f093fb 100%
+            );
+
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .gradient-heading {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(
+                135deg,
+                #667eea 0%,
+                #764ba2 100%
+            );
+
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .glow-border {
-            box-shadow: 0 0 30px rgba(102, 126, 234, 0.2);
+            box-shadow:
+                0 0 30px rgba(102, 126, 234, 0.2);
         }
 
         .sidebar-gradient {
-            background: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
+            background: linear-gradient(
+                180deg,
+                #0a0a0a 0%,
+                #000000 100%
+            );
         }
+
+        /* ====================================================
+           NEW:
+           Keep timer digits aligned as they change.
+           ==================================================== */
+
+        .timer-digits {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.04em;
+        }
+
     </style>
 </head>
+
 
 <body class="bg-black min-h-screen text-white font-inter">
 
     <div class="min-h-screen flex flex-col lg:flex-row">
 
-        <!-- Sidebar - 1/5 width on large screens -->
-        <aside class="w-full lg:w-1/5 sidebar-gradient border-b lg:border-b-0 lg:border-r border-zinc-800/50 p-4 lg:p-6 flex flex-col">
-            
+
+        <!-- ==================================================
+             SIDEBAR
+             ================================================== -->
+
+        <aside
+            class="w-full lg:w-1/5 sidebar-gradient border-b lg:border-b-0 lg:border-r border-zinc-800/50 p-4 lg:p-6 flex flex-col"
+        >
+
             <!-- Logo -->
+
             <div class="flex items-center gap-3 mb-8">
-                <div class="w-12 h-12 bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+
+                <div
+                    class="w-12 h-12 bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30"
+                >
                     <i class="fas fa-robot text-white text-xl"></i>
                 </div>
-                <span class="font-space font-bold text-2xl tracking-tight gradient-heading">AI Interview</span>
+
+                <span
+                    class="font-space font-bold text-2xl tracking-tight gradient-heading"
+                >
+                    AI Interview
+                </span>
+
             </div>
-            
-             <!-- Auth Panel -->
-            <div class="mb-6 rounded-2xl border border-zinc-800/70 bg-zinc-950/70 p-4">
+
+
+            <!-- Auth Panel -->
+
+            <div
+                class="mb-6 rounded-2xl border border-zinc-800/70 bg-zinc-950/70 p-4"
+            >
+
                 <div id="authForms">
-                    <h3 id="authTitle" class="text-white font-bold mb-3">Login</h3>
-                    <input id="authEmail" type="email" autocomplete="email" placeholder="Email" class="w-full mb-2 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]">
-                    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password" class="w-full mb-3 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]">
-                    <p id="authMessage" class="hidden text-xs mb-3"></p>
-                    <button id="authSubmitBtn" class="w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-lg px-4 py-2 text-sm font-bold">Login</button>
-                    <button id="toggleAuthModeBtn" class="w-full mt-2 text-xs text-zinc-400 hover:text-white" type="button">Need an account? Register</button>
+
+                    <h3
+                        id="authTitle"
+                        class="text-white font-bold mb-3"
+                    >
+                        Login
+                    </h3>
+
+                    <input
+                        id="authEmail"
+                        type="email"
+                        autocomplete="email"
+                        placeholder="Email"
+                        class="w-full mb-2 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]"
+                    >
+
+                    <input
+                        id="authPassword"
+                        type="password"
+                        autocomplete="current-password"
+                        placeholder="Password"
+                        class="w-full mb-3 rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white outline-none focus:border-[#667eea]"
+                    >
+
+                    <p
+                        id="authMessage"
+                        class="hidden text-xs mb-3"
+                    ></p>
+
+                    <button
+                        id="authSubmitBtn"
+                        class="w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-lg px-4 py-2 text-sm font-bold"
+                    >
+                        Login
+                    </button>
+
+                    <button
+                        id="toggleAuthModeBtn"
+                        class="w-full mt-2 text-xs text-zinc-400 hover:text-white"
+                        type="button"
+                    >
+                        Need an account? Register
+                    </button>
+
                 </div>
+
+
                 <div id="userPanel" class="hidden">
-                    <p class="text-xs uppercase tracking-wider text-zinc-500 mb-1">Signed in as</p>
-                    <p id="currentUserEmail" class="text-sm text-white font-semibold break-all mb-3"></p>
-                    <button id="logoutBtn" class="w-full border border-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm hover:border-red-500/50 hover:text-red-400" type="button">Logout</button>
+
+                    <p
+                        class="text-xs uppercase tracking-wider text-zinc-500 mb-1"
+                    >
+                        Signed in as
+                    </p>
+
+                    <p
+                        id="currentUserEmail"
+                        class="text-sm text-white font-semibold break-all mb-3"
+                    ></p>
+
+                    <button
+                        id="logoutBtn"
+                        class="w-full border border-zinc-700 text-zinc-300 rounded-lg px-4 py-2 text-sm hover:border-red-500/50 hover:text-red-400"
+                        type="button"
+                    >
+                        Logout
+                    </button>
+
                 </div>
+
             </div>
 
 
             <!-- Topic Label -->
-            <h3 class="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3">Select Topic</h3>
+
+            <h3
+                class="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3"
+            >
+                Select Topic
+            </h3>
+
 
             <!-- Subject Buttons -->
-            <div class="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="Self Introduction">
-                    <div class="w-9 h-9 bg-blue-500/20 rounded-lg flex items-center justify-center">
+
+            <div
+                class="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0"
+            >
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="Self Introduction"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-blue-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fas fa-user text-blue-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">Self Introduction</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        Self Introduction
+                    </span>
+
                 </button>
 
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="Generative AI">
-                    <div class="w-9 h-9 bg-purple-500/20 rounded-lg flex items-center justify-center">
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="Generative AI"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-purple-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fas fa-brain text-purple-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">Generative AI</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        Generative AI
+                    </span>
+
                 </button>
 
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="Python">
-                    <div class="w-9 h-9 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="Python"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-yellow-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fab fa-python text-yellow-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">Python</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        Python
+                    </span>
+
                 </button>
 
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="English">
-                    <div class="w-9 h-9 bg-green-500/20 rounded-lg flex items-center justify-center">
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="English"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-green-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fas fa-language text-green-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">English</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        English
+                    </span>
+
                 </button>
 
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="HTML">
-                    <div class="w-9 h-9 bg-orange-500/20 rounded-lg flex items-center justify-center">
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="HTML"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-orange-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fab fa-html5 text-orange-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">HTML</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        HTML
+                    </span>
+
                 </button>
 
-                <button class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0" data-subject="CSS">
-                    <div class="w-9 h-9 bg-blue-500/20 rounded-lg flex items-center justify-center">
+
+                <button
+                    class="subject-btn flex items-center gap-3 bg-zinc-900/30 hover:bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-500 rounded-xl p-3 transition-all duration-300 text-left whitespace-nowrap flex-shrink-0"
+                    data-subject="CSS"
+                >
+
+                    <div
+                        class="w-9 h-9 bg-blue-500/20 rounded-lg flex items-center justify-center"
+                    >
                         <i class="fab fa-css3-alt text-blue-400"></i>
                     </div>
-                    <span class="font-medium text-sm text-white">CSS</span>
+
+                    <span
+                        class="font-medium text-sm text-white"
+                    >
+                        CSS
+                    </span>
+
                 </button>
+
             </div>
+
 
             <!-- Footer -->
+
             <div class="mt-auto pt-6 hidden lg:block">
-                <p class="text-zinc-500 text-xs">Powered by AI</p>
+
+                <p class="text-zinc-500 text-xs">
+                    Powered by AI
+                </p>
+
             </div>
+
         </aside>
 
-        <!-- Main Content - 4/5 width on large screens -->
-        <main class="flex-1 lg:w-4/5 flex flex-col bg-black">
-            
-            <!-- Header - Centered -->
-            <header class="px-4 lg:px-8 py-6 lg:py-8 border-b border-zinc-800/50">
-                <div class="text-center max-w-3xl mx-auto">
-                    <h1 class="font-space font-bold text-3xl lg:text-5xl xl:text-6xl tracking-tight mb-3">
-                        <span class="gradient-text">Master Your Interview</span>
+
+        <!-- ==================================================
+             MAIN CONTENT
+             ================================================== -->
+
+        <main
+            class="flex-1 lg:w-4/5 flex flex-col bg-black"
+        >
+
+
+            <!-- Header -->
+
+            <header
+                class="px-4 lg:px-8 py-6 lg:py-8 border-b border-zinc-800/50"
+            >
+
+                <div
+                    class="text-center max-w-3xl mx-auto"
+                >
+
+                    <h1
+                        class="font-space font-bold text-3xl lg:text-5xl xl:text-6xl tracking-tight mb-3"
+                    >
+                        <span class="gradient-text">
+                            Master Your Interview
+                        </span>
                     </h1>
-                    <p class="text-gray-300 text-base lg:text-lg font-light">Ace Your Technical Interviews with AI-Powered Practice and Feedback</p>
+
+                    <p
+                        class="text-gray-300 text-base lg:text-lg font-light"
+                    >
+                        Ace Your Technical Interviews with
+                        AI-Powered Practice and Feedback
+                    </p>
+
                 </div>
+
             </header>
 
-            <!-- Content Area -->
-            <div class="flex-1 p-4 lg:p-8 overflow-y-auto">
 
-                <!-- Welcome Screen -->
-                <div id="welcomeState" class="h-full flex flex-col items-center justify-center text-center py-8">
-                    <div class="w-28 h-28 lg:w-36 lg:h-36 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-zinc-700/30 glow-border">
-                        <i class="fas fa-microphone text-4xl lg:text-5xl text-zinc-400"></i>
+            <!-- Content -->
+
+            <div
+                class="flex-1 p-4 lg:p-8 overflow-y-auto"
+            >
+
+
+                <!-- ==================================================
+                     WELCOME SCREEN
+                     ================================================== -->
+
+                <div
+                    id="welcomeState"
+                    class="h-full flex flex-col items-center justify-center text-center py-8"
+                >
+
+                    <div
+                        class="w-28 h-28 lg:w-36 lg:h-36 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-zinc-700/30 glow-border"
+                    >
+
+                        <i
+                            class="fas fa-microphone text-4xl lg:text-5xl text-zinc-400"
+                        ></i>
+
                     </div>
-                    <h2 class="font-space text-2xl lg:text-3xl font-bold gradient-heading mb-3">Ready to Practice?</h2>
-                    <p class="text-gray-400 text-base lg:text-lg">Select a topic from the sidebar to begin</p>
+
+
+                    <h2
+                        class="font-space text-2xl lg:text-3xl font-bold gradient-heading mb-3"
+                    >
+                        Ready to Practice?
+                    </h2>
+
+
+                    <p
+                        class="text-gray-400 text-base lg:text-lg"
+                    >
+                        Select a topic from the sidebar to begin
+                    </p>
+
                 </div>
 
-                <!-- Interview Screen -->
-                <div id="interviewState" class="hidden">
-                    
-                    <!-- Subject Badge and Question Counter -->
-                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+
+                <!-- ==================================================
+                     INTERVIEW SCREEN
+                     ================================================== -->
+
+                <div
+                    id="interviewState"
+                    class="hidden"
+                >
+
+
+                    <!-- Subject + Timer -->
+
+                    <!-- Subject + Timer + Question -->
+                    <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
+
+                        <!-- Subject -->
                         <div class="flex items-center gap-3">
-                            <span id="subjectBadge" class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-5 py-2 rounded-full font-semibold shadow-lg">Python</span>
+
+                            <span
+                                id="subjectBadge"
+                                class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-5 py-2 rounded-full font-semibold"
+                            >
+                                Python
+                            </span>
+
                             <i id="subjectIcon" class="fab fa-python text-2xl text-yellow-400"></i>
+
                         </div>
-                        <span class="text-gray-300 text-base font-medium">Question <span id="questionNum" class="text-white font-bold text-lg">1</span>/5</span>
+
+                        <!-- Current Question -->
+                        <div class="text-center">
+
+                            <p class="text-xs text-gray-500 uppercase tracking-wider">
+                                Current Question
+                            </p>
+
+                            <div class="text-2xl font-bold text-white mt-1">
+                                Q<span id="questionNum">1</span>
+                            </div>
+
+                        </div>
+
+                        <!-- Timer -->
+                        <div class="text-center bg-zinc-900/70 border border-zinc-800 rounded-xl px-6 py-3 min-w-[160px]">
+
+                            <p class="text-xs text-gray-500 uppercase tracking-wider">
+                                Time Remaining
+                            </p>
+
+                            <div
+                                id="timeRemaining"
+                                class="timer-digits text-2xl font-bold text-white mt-1"
+                            >
+                                --:--
+                            </div>
+
+                        </div>
+
                     </div>
 
-                    <!-- Profile Image - Larger size -->
-                    <div class="flex flex-col items-center mb-6">
-                        <div class="w-44 h-44 lg:w-56 lg:h-56 xl:w-64 xl:h-64 rounded-full overflow-hidden border-4 border-zinc-700/50 mb-4 shadow-2xl">
-                            <img src="https://www.whiteroomstudio.com.sg/wordpress/wp-content/uploads/2021/10/professional-headshot-photography-linkedin-singapore-5.jpeg" alt="Natalie" class="w-full h-full object-cover">
+
+                    <!-- Profile Image -->
+
+                    <div
+                        class="flex flex-col items-center mb-6"
+                    >
+
+                        <div
+                            class="w-44 h-44 lg:w-56 lg:h-56 xl:w-64 xl:h-64 rounded-full overflow-hidden border-4 border-zinc-700/50 mb-4 shadow-2xl"
+                        >
+
+                            <img
+                                src="https://www.whiteroomstudio.com.sg/wordpress/wp-content/uploads/2021/10/professional-headshot-photography-linkedin-singapore-5.jpeg"
+                                alt="Natalie"
+                                class="w-full h-full object-cover"
+                            >
+
                         </div>
-                        <p class="text-gray-300 text-lg lg:text-xl font-medium">Natalie</p>
+
+                        <p
+                            class="text-gray-300 text-lg lg:text-xl font-medium"
+                        >
+                            Natalie
+                        </p>
+
                     </div>
+
 
                     <!-- Speaking Bubble -->
-                    <div class="max-w-2xl mx-auto mb-6">
-                        <div id="speakingBubble" class="hidden flex justify-center items-center gap-3 p-5 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
+
+                    <div
+                        class="max-w-2xl mx-auto mb-6"
+                    >
+
+                        <div
+                            id="speakingBubble"
+                            class="hidden flex justify-center items-center gap-3 p-5 bg-zinc-900/50 rounded-2xl border border-zinc-800/50"
+                        >
+
                             <div class="flex gap-2">
-                                <div class="w-3 h-3 bg-[#667eea] rounded-full animate-bounce" style="animation-delay: 0s;"></div>
-                                <div class="w-3 h-3 bg-[#764ba2] rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
-                                <div class="w-3 h-3 bg-[#f093fb] rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+
+                                <div
+                                    class="w-3 h-3 bg-[#667eea] rounded-full animate-bounce"
+                                    style="animation-delay: 0s;"
+                                ></div>
+
+                                <div
+                                    class="w-3 h-3 bg-[#764ba2] rounded-full animate-bounce"
+                                    style="animation-delay: 0.2s;"
+                                ></div>
+
+                                <div
+                                    class="w-3 h-3 bg-[#f093fb] rounded-full animate-bounce"
+                                    style="animation-delay: 0.4s;"
+                                ></div>
+
                             </div>
-                            <span class="text-gray-200 ml-2 font-medium">Pranathi is speaking...</span>
+
+                            <span
+                                class="text-gray-200 ml-2 font-medium"
+                            >
+                                Natalie is speaking...
+                            </span>
+
                         </div>
+
                     </div>
+
 
                     <!-- Recording Controls -->
-                    <div class="flex flex-col items-center gap-4 mb-6">
-                        <!-- Start Interview Button / Record Button -->
-                        <button id="startInterviewBtn" class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-8 py-3 rounded-full font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300">
+
+                    <div
+                        class="flex flex-col items-center gap-4 mb-6"
+                    >
+
+                        <button
+                            id="startInterviewBtn"
+                            class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-8 py-3 rounded-full font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300"
+                        >
                             Start Interview
                         </button>
-                        
-                        <button id="recordBtn" disabled class="hidden w-20 h-20 lg:w-24 lg:h-24 rounded-full bg-zinc-800/80 text-gray-300 flex items-center justify-center transition-all duration-300 border-2 border-zinc-700/50 hover:border-zinc-500">
-                            <i id="micIcon" class="fas fa-microphone text-2xl lg:text-3xl"></i>
-                            <i id="stopIcon" class="fas fa-stop text-2xl lg:text-3xl hidden"></i>
-                        </button>
-                        <p id="recordingStatus" class="text-gray-400 text-base">Click Start Interview to begin</p>
 
-                        <button id="submitBtn" disabled class="hidden bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-8 py-3 rounded-full font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300">
+
+                        <button
+                            id="recordBtn"
+                            disabled
+                            class="hidden w-20 h-20 lg:w-24 lg:h-24 rounded-full bg-zinc-800/80 text-gray-300 flex items-center justify-center transition-all duration-300 border-2 border-zinc-700/50 hover:border-zinc-500"
+                        >
+
+                            <i
+                                id="micIcon"
+                                class="fas fa-microphone text-2xl lg:text-3xl"
+                            ></i>
+
+                            <i
+                                id="stopIcon"
+                                class="fas fa-stop text-2xl lg:text-3xl hidden"
+                            ></i>
+
+                        </button>
+
+
+                        <p
+                            id="recordingStatus"
+                            class="text-gray-400 text-base"
+                        >
+                            Click Start Interview to begin
+                        </p>
+
+
+                        <button
+                            id="submitBtn"
+                            disabled
+                            class="hidden bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-8 py-3 rounded-full font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300"
+                        >
                             Submit Answer
                         </button>
+
                     </div>
 
-                    <!-- End Interview Button -->
+
+                    <!-- End Interview -->
+
                     <div class="text-center">
-                        <button id="endInterviewBtn" disabled class="border-2 border-zinc-700 text-gray-300 px-6 py-2.5 rounded-xl transition-all duration-300 hover:border-red-500/50 hover:text-red-400 font-medium text-sm">
+
+                        <button
+                            id="endInterviewBtn"
+                            disabled
+                            class="border-2 border-zinc-700 text-gray-300 px-6 py-2.5 rounded-xl transition-all duration-300 hover:border-red-500/50 hover:text-red-400 font-medium text-sm"
+                        >
                             End Interview
                         </button>
+
                     </div>
+
 
                     <!-- Feedback Section -->
-                    <div id="feedbackSection" class="hidden mt-10 pt-6 border-t border-zinc-800/50">
-                        
-                        <!-- Get Feedback Button -->
-                        <div id="getFeedbackArea" class="text-center mb-6">
-                            <p class="text-gray-300 mb-4 text-base">Interview completed!</p>
-                            <button id="getFeedbackBtn" class="bg-gradient-to-r from-[#667eea] via-[#764ba2] to-[#f093fb] text-white px-8 py-3 rounded-full font-bold text-base hover:opacity-90 transition-all duration-300 shadow-lg shadow-purple-500/30">
+
+                    <div
+                        id="feedbackSection"
+                        class="hidden mt-10 pt-6 border-t border-zinc-800/50"
+                    >
+
+                        <div
+                            id="getFeedbackArea"
+                            class="text-center mb-6"
+                        >
+
+                            <p
+                                class="text-gray-300 mb-4 text-base"
+                            >
+                                Interview completed!
+                            </p>
+
+                            <button
+                                id="getFeedbackBtn"
+                                class="bg-gradient-to-r from-[#667eea] via-[#764ba2] to-[#f093fb] text-white px-8 py-3 rounded-full font-bold text-base hover:opacity-90 transition-all duration-300 shadow-lg shadow-purple-500/30"
+                            >
                                 Get Feedback
                             </button>
+
                         </div>
 
-                        <!-- Feedback Content -->
-                        <div id="feedbackContent" class="hidden max-w-xl mx-auto">
-                            
-                            <!-- Feedback Header -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start gap-6 mb-6">
+
+                        <div
+                            id="feedbackContent"
+                            class="hidden max-w-xl mx-auto"
+                        >
+
+                            <div
+                                class="flex flex-col sm:flex-row justify-between items-start gap-6 mb-6"
+                            >
+
                                 <div>
-                                    <p class="text-gray-400 text-xs mb-1 uppercase tracking-wider">Detailed Feedback</p>
-                                    <h3 id="feedbackSubject" class="font-space text-2xl font-bold gradient-heading">Subject</h3>
+
+                                    <p
+                                        class="text-gray-400 text-xs mb-1 uppercase tracking-wider"
+                                    >
+                                        Detailed Feedback
+                                    </p>
+
+                                    <h3
+                                        id="feedbackSubject"
+                                        class="font-space text-2xl font-bold gradient-heading"
+                                    >
+                                        Subject
+                                    </h3>
+
                                 </div>
+
+
                                 <div class="text-center">
-                                    <div class="relative w-24 h-24">
-                                        <svg class="w-24 h-24 transform -rotate-90">
-                                            <circle cx="48" cy="48" r="40" stroke="#27272a" stroke-width="5" fill="none" />
-                                            <circle id="scoreCircle" cx="48" cy="48" r="40" stroke="url(#scoreGradient)" stroke-width="5" fill="none" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" class="transition-all duration-1000" />
+
+                                    <div
+                                        class="relative w-24 h-24"
+                                    >
+
+                                        <svg
+                                            class="w-24 h-24 transform -rotate-90"
+                                        >
+
+                                            <circle
+                                                cx="48"
+                                                cy="48"
+                                                r="40"
+                                                stroke="#27272a"
+                                                stroke-width="5"
+                                                fill="none"
+                                            />
+
+                                            <circle
+                                                id="scoreCircle"
+                                                cx="48"
+                                                cy="48"
+                                                r="40"
+                                                stroke="url(#scoreGradient)"
+                                                stroke-width="5"
+                                                fill="none"
+                                                stroke-dasharray="251.2"
+                                                stroke-dashoffset="251.2"
+                                                stroke-linecap="round"
+                                                class="transition-all duration-1000"
+                                            />
+
                                             <defs>
-                                                <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                    <stop offset="0%" stop-color="#667eea" />
-                                                    <stop offset="100%" stop-color="#764ba2" />
+
+                                                <linearGradient
+                                                    id="scoreGradient"
+                                                    x1="0%"
+                                                    y1="0%"
+                                                    x2="100%"
+                                                    y2="0%"
+                                                >
+
+                                                    <stop
+                                                        offset="0%"
+                                                        stop-color="#667eea"
+                                                    />
+
+                                                    <stop
+                                                        offset="100%"
+                                                        stop-color="#764ba2"
+                                                    />
+
                                                 </linearGradient>
+
                                             </defs>
+
                                         </svg>
-                                        <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span id="scoreValue" class="text-2xl font-bold text-white">0</span>
-                                            <span class="text-xs text-gray-400">/5</span>
+
+
+                                        <div
+                                            class="absolute inset-0 flex flex-col items-center justify-center"
+                                        >
+
+                                            <span
+                                                id="scoreValue"
+                                                class="text-2xl font-bold text-white"
+                                            >
+                                                0
+                                            </span>
+
+                                            <span
+                                                class="text-xs text-gray-400"
+                                            >
+                                                /5
+                                            </span>
+
                                         </div>
+
                                     </div>
-                                    <p class="text-xs text-gray-400 mt-1">Score</p>
+
+                                    <p
+                                        class="text-xs text-gray-400 mt-1"
+                                    >
+                                        Score
+                                    </p>
+
                                 </div>
+
                             </div>
 
-                            <!-- Feedback Cards -->
-                            <div class="space-y-4">
-                                <div class="bg-zinc-900/30 rounded-xl p-5 border border-zinc-800/50">
-                                    <h4 class="text-lg font-bold mb-2 flex items-center gap-2 gradient-heading">
-                                        <i class="fas fa-star text-yellow-400"></i>
+
+                            <div
+                                class="space-y-4"
+                            >
+
+                                <div
+                                    class="bg-zinc-900/30 rounded-xl p-5 border border-zinc-800/50"
+                                >
+
+                                    <h4
+                                        class="text-lg font-bold mb-2 flex items-center gap-2 gradient-heading"
+                                    >
+
+                                        <i
+                                            class="fas fa-star text-yellow-400"
+                                        ></i>
+
                                         Feedback
+
                                     </h4>
-                                    <p id="feedbackText" class="text-gray-200 leading-relaxed text-sm"></p>
+
+                                    <p
+                                        id="feedbackText"
+                                        class="text-gray-200 leading-relaxed text-sm"
+                                    ></p>
+
                                 </div>
-                                <div class="bg-zinc-900/30 rounded-xl p-5 border border-zinc-800/50">
-                                    <h4 class="text-lg font-bold mb-2 flex items-center gap-2 gradient-heading">
-                                        <i class="fas fa-chart-line text-cyan-400"></i>
+
+
+                                <div
+                                    class="bg-zinc-900/30 rounded-xl p-5 border border-zinc-800/50"
+                                >
+
+                                    <h4
+                                        class="text-lg font-bold mb-2 flex items-center gap-2 gradient-heading"
+                                    >
+
+                                        <i
+                                            class="fas fa-chart-line text-cyan-400"
+                                        ></i>
+
                                         Areas of Improvement
+
                                     </h4>
-                                    <p id="improvementText" class="text-gray-200 leading-relaxed text-sm"></p>
+
+                                    <p
+                                        id="improvementText"
+                                        class="text-gray-200 leading-relaxed text-sm"
+                                    ></p>
+
                                 </div>
+
                             </div>
 
-                            <!-- New Interview Button - Smaller width -->
-                            <div class="text-center mt-8">
-                                <button id="newInterviewBtn" class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-10 py-3 rounded-xl font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300">
+
+                            <div
+                                class="text-center mt-8"
+                            >
+
+                                <button
+                                    id="newInterviewBtn"
+                                    class="bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white px-10 py-3 rounded-xl font-bold text-base hover:shadow-lg hover:shadow-purple-500/30 transition-all duration-300"
+                                >
                                     Start New Interview
                                 </button>
+
                             </div>
+
                         </div>
+
                     </div>
+
                 </div>
+
             </div>
+
         </main>
+
     </div>
 
+
     <script src="index.js"></script>
+
 </body>
 
 </html>
