@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dashboard | AI Interview</title>
+
+    <!-- =====================================================
+         TAILWIND CSS
+         ===================================================== -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- =====================================================
+         FONT AWESOME
+         ===================================================== -->
+    <link
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- =====================================================
+         GOOGLE FONTS
+         ===================================================== -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ["Inter", "sans-serif"],
+                        space: ["Space Grotesk", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- =====================================================
+         DASHBOARD STYLES
+         ===================================================== -->
+    <style>
+
+        body {
+            font-family: "Inter", sans-serif;
+        }
+
+        .gradient-text {
+            background: linear-gradient(
+                135deg,
+                #667eea 0%,
+                #764ba2 50%,
+                #f093fb 100%
+            );
+
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .gradient-heading {
+            background: linear-gradient(
+                135deg,
+                #667eea 0%,
+                #764ba2 100%
+            );
+
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glass-card {
+            background: rgba(24, 24, 27, 0.68);
+            border: 1px solid rgba(63, 63, 70, 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .glass-card-hover {
+            transition:
+                transform 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease;
+        }
+
+        .glass-card-hover:hover {
+            transform: translateY(-4px);
+            border-color: rgba(102, 126, 234, 0.55);
+            box-shadow:
+                0 18px 45px rgba(0, 0, 0, 0.32),
+                0 0 30px rgba(102, 126, 234, 0.08);
+        }
+
+        .topic-card.active {
+            border-color: rgba(102, 126, 234, 0.8);
+            background: rgba(102, 126, 234, 0.10);
+            box-shadow:
+                0 0 25px rgba(102, 126, 234, 0.10);
+        }
+
+        .duration-btn.active {
+            border-color: rgba(102, 126, 234, 0.85);
+            background: linear-gradient(
+                135deg,
+                rgba(102, 126, 234, 0.22),
+                rgba(118, 75, 162, 0.22)
+            );
+            color: white;
+        }
+
+        .hero-glow {
+            position: absolute;
+            width: 420px;
+            height: 420px;
+            border-radius: 9999px;
+            background:
+                radial-gradient(
+                    circle,
+                    rgba(102, 126, 234, 0.16) 0%,
+                    rgba(118, 75, 162, 0.08) 35%,
+                    transparent 72%
+                );
+            filter: blur(10px);
+            pointer-events: none;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: rgba(63, 63, 70, 0.7);
+            border-radius: 9999px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+    </style>
+</head>
+
+
+<body class="bg-black text-white min-h-screen">
+
+
+    <!-- =====================================================
+         PAGE BACKGROUND
+         ===================================================== -->
+
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+
+        <div class="hero-glow -top-32 -left-24"></div>
+
+        <div
+            class="hero-glow top-1/2 right-[-180px] opacity-60"
+        ></div>
+
+    </div>
+
+
+    <!-- =====================================================
+         APP SHELL
+         ===================================================== -->
+
+    <div class="relative min-h-screen">
+
+
+        <!-- =================================================
+             TOP NAVIGATION
+             ================================================= -->
+
+        <header
+            class="sticky top-0 z-50 border-b border-zinc-800/60 bg-black/80 backdrop-blur-xl"
+        >
+
+            <div
+                class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+            >
+
+                <div
+                    class="h-20 flex items-center justify-between"
+                >
+
+
+                    <!-- BRAND -->
+
+                    <a
+                        href="dashboard.html"
+                        class="flex items-center gap-3"
+                    >
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/20"
+                        >
+
+                            <i
+                                class="fas fa-robot text-white text-lg"
+                            ></i>
+
+                        </div>
+
+                        <div>
+
+                            <div
+                                class="font-space text-xl font-bold gradient-heading"
+                            >
+                                AI Interview
+                            </div>
+
+                            <div
+                                class="text-[11px] text-zinc-500 uppercase tracking-[0.18em]"
+                            >
+                                Practice smarter
+                            </div>
+
+                        </div>
+
+                    </a>
+
+
+                    <!-- NAV ACTIONS -->
+
+                    <div
+                        class="flex items-center gap-3"
+                    >
+
+                        <button
+                            id="profileButton"
+                            type="button"
+                            class="hidden sm:flex items-center gap-3 px-3 py-2 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/70 transition"
+                        >
+
+                            <div
+                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center"
+                            >
+
+                                <i class="fas fa-user text-xs"></i>
+
+                            </div>
+
+                            <div class="text-left">
+
+                                <p
+                                    id="navUserName"
+                                    class="text-sm font-semibold text-white"
+                                >
+                                    Candidate
+                                </p>
+
+                                <p
+                                    id="navUserEmail"
+                                    class="text-[11px] text-zinc-500 max-w-[180px] truncate"
+                                >
+                                    --
+                                </p>
+
+                            </div>
+
+                            <i
+                                class="fas fa-chevron-down text-[10px] text-zinc-500"
+                            ></i>
+
+                        </button>
+
+
+                        <button
+                            id="logoutBtn"
+                            type="button"
+                            class="w-10 h-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition"
+                            title="Logout"
+                        >
+
+                            <i class="fas fa-right-from-bracket"></i>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             MAIN
+             ================================================= -->
+
+        <main
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10"
+        >
+
+
+            <!-- =================================================
+                 WELCOME HERO
+                 ================================================= -->
+
+            <section class="mb-8">
+
+                <div
+                    class="glass-card rounded-3xl p-6 sm:p-8 lg:p-10 relative overflow-hidden"
+                >
+
+                    <div
+                        class="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-purple-500/5 to-transparent pointer-events-none"
+                    ></div>
+
+                    <div class="relative">
+
+
+                        <div
+                            class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6"
+                        >
+
+                            <div>
+
+                                <div
+                                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/70 text-xs text-zinc-400 mb-4"
+                                >
+
+                                    <span
+                                        class="w-2 h-2 rounded-full bg-green-400"
+                                    ></span>
+
+                                    AI Interview Coach
+
+                                </div>
+
+
+                                <h1
+                                    class="font-space text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight"
+                                >
+
+                                    Welcome back,
+
+                                    <span
+                                        id="welcomeUserName"
+                                        class="gradient-text"
+                                    >
+                                        Candidate
+                                    </span>
+                                    👋
+
+                                </h1>
+
+
+                                <p
+                                    class="mt-4 text-zinc-400 text-base lg:text-lg max-w-2xl leading-relaxed"
+                                >
+                                    Practice realistic interviews,
+                                    improve your communication, and
+                                    build confidence one session at a time.
+                                </p>
+
+                            </div>
+
+
+                            <div
+                                class="shrink-0"
+                            >
+
+                                <button
+                                    id="heroStartBtn"
+                                    type="button"
+                                    class="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-bold shadow-xl shadow-purple-500/20 hover:scale-[1.02] transition"
+                                >
+
+                                    <i class="fas fa-microphone"></i>
+
+                                    Start Interview
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 OVERVIEW CARDS
+                 ================================================= -->
+
+            <section
+                class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8"
+            >
+
+
+                <div class="glass-card glass-card-hover rounded-2xl p-5">
+
+                    <div
+                        class="flex items-start justify-between"
+                    >
+
+                        <div>
+
+                            <p
+                                class="text-xs uppercase tracking-wider text-zinc-500"
+                            >
+                                Interviews
+                            </p>
+
+                            <p
+                                id="interviewCount"
+                                class="text-3xl font-bold mt-2"
+                            >
+                                0
+                            </p>
+
+                            <p
+                                class="text-xs text-zinc-500 mt-1"
+                            >
+                                Completed practice sessions
+                            </p>
+
+                        </div>
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/10 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-video text-blue-400"
+                            ></i>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="glass-card glass-card-hover rounded-2xl p-5">
+
+                    <div
+                        class="flex items-start justify-between"
+                    >
+
+                        <div>
+
+                            <p
+                                class="text-xs uppercase tracking-wider text-zinc-500"
+                            >
+                                Latest Score
+                            </p>
+
+                            <p
+                                id="latestScore"
+                                class="text-3xl font-bold mt-2"
+                            >
+                                --
+                            </p>
+
+                            <p
+                                class="text-xs text-zinc-500 mt-1"
+                            >
+                                Out of 5
+                            </p>
+
+                        </div>
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-yellow-500/10 border border-yellow-500/10 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-star text-yellow-400"
+                            ></i>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="glass-card glass-card-hover rounded-2xl p-5">
+
+                    <div
+                        class="flex items-start justify-between"
+                    >
+
+                        <div>
+
+                            <p
+                                class="text-xs uppercase tracking-wider text-zinc-500"
+                            >
+                                Practice Time
+                            </p>
+
+                            <p
+                                id="practiceTime"
+                                class="text-3xl font-bold mt-2"
+                            >
+                                0m
+                            </p>
+
+                            <p
+                                class="text-xs text-zinc-500 mt-1"
+                            >
+                                Total interview duration
+                            </p>
+
+                        </div>
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/10 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-clock text-purple-400"
+                            ></i>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="glass-card glass-card-hover rounded-2xl p-5">
+
+                    <div
+                        class="flex items-start justify-between"
+                    >
+
+                        <div>
+
+                            <p
+                                class="text-xs uppercase tracking-wider text-zinc-500"
+                            >
+                                Focus Area
+                            </p>
+
+                            <p
+                                id="focusArea"
+                                class="text-xl font-bold mt-3 truncate max-w-[145px]"
+                            >
+                                Python
+                            </p>
+
+                            <p
+                                class="text-xs text-zinc-500 mt-1"
+                            >
+                                Your selected topic
+                            </p>
+
+                        </div>
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-green-500/10 border border-green-500/10 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-bullseye text-green-400"
+                            ></i>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 START INTERVIEW + PROFILE
+                 ================================================= -->
+
+            <section
+                class="grid grid-cols-1 xl:grid-cols-[1.35fr_0.65fr] gap-6 mb-8"
+            >
+
+
+                <!-- START INTERVIEW CARD -->
+
+                <div
+                    class="glass-card rounded-3xl p-6 sm:p-8"
+                >
+
+                    <div
+                        class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-7"
+                    >
+
+                        <div>
+
+                            <p
+                                class="text-xs uppercase tracking-[0.16em] text-zinc-500 mb-2"
+                            >
+                                Practice Session
+                            </p>
+
+                            <h2
+                                class="font-space text-2xl font-bold"
+                            >
+                                Start a new interview
+                            </h2>
+
+                            <p
+                                class="text-sm text-zinc-400 mt-2"
+                            >
+                                Choose your focus area and interview length.
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="hidden sm:flex items-center gap-2 text-xs text-zinc-500"
+                        >
+
+                            <i class="fas fa-shield-halved"></i>
+
+                            Safe practice environment
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- TOPIC SELECTION -->
+
+                    <div class="mb-7">
+
+                        <div
+                            class="flex items-center justify-between mb-3"
+                        >
+
+                            <label
+                                class="text-sm font-semibold text-zinc-200"
+                            >
+                                Choose a topic
+                            </label>
+
+                            <span
+                                id="selectedTopicLabel"
+                                class="text-xs text-indigo-300"
+                            >
+                                Python selected
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            id="topicGrid"
+                            class="grid grid-cols-2 sm:grid-cols-3 gap-3"
+                        >
+
+
+                            <!-- Python -->
+
+                            <button
+                                type="button"
+                                class="topic-card active text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="Python"
+                                data-icon="fab fa-python"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fab fa-python text-yellow-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    Python
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Programming
+                                </p>
+
+                            </button>
+
+
+                            <!-- Generative AI -->
+
+                            <button
+                                type="button"
+                                class="topic-card text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="Generative AI"
+                                data-icon="fas fa-brain"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fas fa-brain text-purple-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    Generative AI
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    AI & LLMs
+                                </p>
+
+                            </button>
+
+
+                            <!-- Self Introduction -->
+
+                            <button
+                                type="button"
+                                class="topic-card text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="Self Introduction"
+                                data-icon="fas fa-user"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fas fa-user text-blue-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    Self Introduction
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Behavioral
+                                </p>
+
+                            </button>
+
+
+                            <!-- English -->
+
+                            <button
+                                type="button"
+                                class="topic-card text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="English"
+                                data-icon="fas fa-language"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fas fa-language text-green-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    English
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Communication
+                                </p>
+
+                            </button>
+
+
+                            <!-- HTML -->
+
+                            <button
+                                type="button"
+                                class="topic-card text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="HTML"
+                                data-icon="fab fa-html5"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fab fa-html5 text-orange-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    HTML
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Web Structure
+                                </p>
+
+                            </button>
+
+
+                            <!-- CSS -->
+
+                            <button
+                                type="button"
+                                class="topic-card text-left rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition glass-card-hover"
+                                data-topic="CSS"
+                                data-icon="fab fa-css3-alt"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-3"
+                                >
+
+                                    <i
+                                        class="fab fa-css3-alt text-cyan-400 text-lg"
+                                    ></i>
+
+                                </div>
+
+                                <p class="font-semibold text-sm">
+                                    CSS
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Styling
+                                </p>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- DURATION -->
+
+                    <div class="mb-7">
+
+                        <label
+                            class="block text-sm font-semibold text-zinc-200 mb-3"
+                        >
+                            Interview duration
+                        </label>
+
+
+                        <div
+                            id="durationGrid"
+                            class="grid grid-cols-3 gap-3"
+                        >
+
+                            <button
+                                type="button"
+                                class="duration-btn active rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-center transition"
+                                data-duration="10"
+                            >
+
+                                <div
+                                    class="text-lg font-bold"
+                                >
+                                    10
+                                </div>
+
+                                <div
+                                    class="text-xs text-zinc-500"
+                                >
+                                    minutes
+                                </div>
+
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="duration-btn rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-center transition"
+                                data-duration="20"
+                            >
+
+                                <div
+                                    class="text-lg font-bold"
+                                >
+                                    20
+                                </div>
+
+                                <div
+                                    class="text-xs text-zinc-500"
+                                >
+                                    minutes
+                                </div>
+
+                            </button>
+
+
+                            <button
+                                type="button"
+                                class="duration-btn rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-4 text-center transition"
+                                data-duration="30"
+                            >
+
+                                <div
+                                    class="text-lg font-bold"
+                                >
+                                    30
+                                </div>
+
+                                <div
+                                    class="text-xs text-zinc-500"
+                                >
+                                    minutes
+                                </div>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CTA -->
+
+                    <button
+                        id="startInterviewBtn"
+                        type="button"
+                        class="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-bold text-base shadow-xl shadow-purple-500/20 hover:shadow-purple-500/30 hover:scale-[1.01] transition"
+                    >
+
+                        <i class="fas fa-play"></i>
+
+                        Start
+                        <span id="ctaTopic">
+                            Python
+                        </span>
+                        Interview
+
+                    </button>
+
+
+                    <p
+                        id="dashboardMessage"
+                        class="hidden text-sm text-center mt-4 px-4 py-3 rounded-xl border"
+                    ></p>
+
+                </div>
+
+
+                <!-- QUICK PROFILE -->
+
+                <div
+                    class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col"
+                >
+
+                    <p
+                        class="text-xs uppercase tracking-[0.16em] text-zinc-500 mb-2"
+                    >
+                        Your profile
+                    </p>
+
+                    <h2
+                        class="font-space text-2xl font-bold mb-6"
+                    >
+                        Keep improving
+                    </h2>
+
+
+                    <div
+                        class="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 mb-5"
+                    >
+
+                        <div
+                            class="flex items-center gap-4"
+                        >
+
+                            <div
+                                class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/20"
+                            >
+
+                                <i
+                                    class="fas fa-user text-xl"
+                                ></i>
+
+                            </div>
+
+                            <div class="min-w-0">
+
+                                <p
+                                    id="profileEmail"
+                                    class="font-semibold truncate"
+                                >
+                                    --
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500 mt-1"
+                                >
+                                    Interview candidate
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="space-y-3">
+
+
+                        <div
+                            class="flex items-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/60 px-4 py-3"
+                        >
+
+                            <div
+                                class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center"
+                            >
+
+                                <i
+                                    class="fas fa-check text-green-400 text-sm"
+                                ></i>
+
+                            </div>
+
+                            <div>
+
+                                <p
+                                    class="text-sm font-medium"
+                                >
+                                    Voice-based practice
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500"
+                                >
+                                    Answer using your microphone
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="flex items-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/60 px-4 py-3"
+                        >
+
+                            <div
+                                class="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center"
+                            >
+
+                                <i
+                                    class="fas fa-robot text-purple-400 text-sm"
+                                ></i>
+
+                            </div>
+
+                            <div>
+
+                                <p
+                                    class="text-sm font-medium"
+                                >
+                                    AI interviewer
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500"
+                                >
+                                    Adaptive interview questions
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="flex items-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/60 px-4 py-3"
+                        >
+
+                            <div
+                                class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center"
+                            >
+
+                                <i
+                                    class="fas fa-chart-line text-blue-400 text-sm"
+                                ></i>
+
+                            </div>
+
+                            <div>
+
+                                <p
+                                    class="text-sm font-medium"
+                                >
+                                    Detailed feedback
+                                </p>
+
+                                <p
+                                    class="text-xs text-zinc-500"
+                                >
+                                    Review your interview performance
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="mt-auto pt-6">
+
+                        <div
+                            class="rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/10 p-4"
+                        >
+
+                            <p
+                                class="text-xs uppercase tracking-wider text-indigo-300/80"
+                            >
+                                Tip
+                            </p>
+
+                            <p
+                                class="text-sm text-zinc-300 mt-2 leading-relaxed"
+                            >
+                                Speak clearly and explain your
+                                reasoning instead of rushing to the answer.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 RECENT ACTIVITY
+                 ================================================= -->
+
+            <section
+                class="glass-card rounded-3xl p-6 sm:p-8"
+            >
+
+                <div
+                    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6"
+                >
+
+                    <div>
+
+                        <p
+                            class="text-xs uppercase tracking-[0.16em] text-zinc-500 mb-2"
+                        >
+                            Progress
+                        </p>
+
+                        <h2
+                            class="font-space text-2xl font-bold"
+                        >
+                            Recent interviews
+                        </h2>
+
+                    </div>
+
+
+                    <span
+                        class="text-xs text-zinc-500"
+                    >
+                        Your practice history
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="recentInterviews"
+                    class="space-y-3"
+                >
+
+                    <!-- Empty state -->
+
+                    <div
+                        id="emptyHistoryState"
+                        class="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/40 p-8 text-center"
+                    >
+
+                        <div
+                            class="w-12 h-12 mx-auto rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4"
+                        >
+
+                            <i
+                                class="fas fa-clock-rotate-left text-zinc-500"
+                            ></i>
+
+                        </div>
+
+                        <h3
+                            class="font-semibold text-zinc-200"
+                        >
+                            No interviews yet
+                        </h3>
+
+                        <p
+                            class="text-sm text-zinc-500 mt-2"
+                        >
+                            Complete your first interview and your
+                            recent activity will appear here.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+        </main>
+
+
+        <!-- =====================================================
+             FOOTER
+             ===================================================== -->
+
+        <footer
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8"
+        >
+
+            <div
+                class="pt-6 border-t border-zinc-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+            >
+
+                <p class="text-xs text-zinc-600">
+                    AI Interview Platform
+                </p>
+
+                <p class="text-xs text-zinc-600">
+                    Practice. Improve. Perform.
+                </p>
+
+            </div>
+
+        </footer>
+
+    </div>
+
+
+    <!-- =====================================================
+         DASHBOARD JAVASCRIPT
+         ===================================================== -->
+
+    <script src="dashboard.js"></script>
+
+</body>
+
+</html>

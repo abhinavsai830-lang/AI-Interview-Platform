@@ -121,7 +121,7 @@ function redirectAuthenticatedUser() {
     if (token) {
 
         window.location.href =
-            "index.html";
+            "dashboard.html";
     }
 }
 
@@ -274,7 +274,7 @@ function initLoginPage() {
                 () => {
 
                     window.location.href =
-                        "index.html";
+                        "dashboard.html";
 
                 },
                 400
