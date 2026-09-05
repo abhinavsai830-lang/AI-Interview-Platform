@@ -2,6 +2,24 @@
 <html lang="en">
 
 <head>
+    <!-- =========================================================
+     NEW: Protect interview application from unauthenticated
+     access. Users must login before entering the app.
+     ========================================================= -->
+
+<script>
+
+    const existingAuthToken =
+        localStorage.getItem("authToken");
+
+    if (!existingAuthToken) {
+
+        window.location.replace(
+            "login.html"
+        );
+    }
+
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
