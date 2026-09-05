@@ -13,12 +13,90 @@ let currentAudio = null;
 
 let authMode = "login";
 
-let authToken = localStorage.getItem("authToken");
+let authToken =
+    localStorage.getItem("authToken");
 
 let currentUser = JSON.parse(
     localStorage.getItem("currentUser") || "null"
 );
 
+
+// ============================================================
+// DASHBOARD INTERVIEW CONFIGURATION
+// ============================================================
+//
+// The dashboard opens the interview room like this:
+//
+// index.html?subject=Generative+AI&duration=20&autoStart=true
+//
+// URL values are the primary source of truth.
+// localStorage is kept only as a fallback for older sessions.
+// ============================================================
+
+const interviewParams =
+    new URLSearchParams(
+        window.location.search
+    );
+
+const dashboardSelectedSubject =
+    interviewParams.get("subject") ||
+    localStorage.getItem("selectedSubject");
+
+const dashboardDurationParam =
+    Number(
+        interviewParams.get("duration")
+    );
+
+const storedDuration =
+    Number(
+        localStorage.getItem("selectedDuration")
+    );
+
+const dashboardAutoStart =
+    interviewParams.get("autoStart") === "true";
+
+
+// ============================================================
+// INTERVIEW DURATION
+// ============================================================
+
+let selectedDuration = 20;
+
+if (
+    Number.isFinite(dashboardDurationParam) &&
+    dashboardDurationParam >= 10 &&
+    dashboardDurationParam <= 60
+) {
+    selectedDuration =
+        dashboardDurationParam;
+
+} else if (
+    Number.isFinite(storedDuration) &&
+    storedDuration >= 10 &&
+    storedDuration <= 60
+) {
+    selectedDuration =
+        storedDuration;
+}
+
+
+// ============================================================
+// DASHBOARD LAUNCH DEBUG
+// ============================================================
+
+console.log(
+    "[Dashboard Launch]",
+    {
+        subject:
+            dashboardSelectedSubject,
+
+        duration:
+            selectedDuration,
+
+        autoStart:
+            dashboardAutoStart
+    }
+);
 
 // ============================================================
 // TIMER STATE
@@ -33,76 +111,124 @@ let interviewTimer = null;
 // ============================================================
 
 const welcomeState =
-    document.getElementById("welcomeState");
+    document.getElementById(
+        "welcomeState"
+    );
 
 const interviewState =
-    document.getElementById("interviewState");
+    document.getElementById(
+        "interviewState"
+    );
 
 const subjectBtns =
-    document.querySelectorAll(".subject-btn");
+    document.querySelectorAll(
+        ".subject-btn"
+    );
 
 const subjectBadge =
-    document.getElementById("subjectBadge");
+    document.getElementById(
+        "subjectBadge"
+    );
 
 const subjectIcon =
-    document.getElementById("subjectIcon");
+    document.getElementById(
+        "subjectIcon"
+    );
 
 const questionNum =
-    document.getElementById("questionNum");
+    document.getElementById(
+        "questionNum"
+    );
 
 const speakingBubble =
-    document.getElementById("speakingBubble");
+    document.getElementById(
+        "speakingBubble"
+    );
 
 const startInterviewBtn =
-    document.getElementById("startInterviewBtn");
+    document.getElementById(
+        "startInterviewBtn"
+    );
 
 const recordBtn =
-    document.getElementById("recordBtn");
+    document.getElementById(
+        "recordBtn"
+    );
 
 const micIcon =
-    document.getElementById("micIcon");
+    document.getElementById(
+        "micIcon"
+    );
 
 const stopIcon =
-    document.getElementById("stopIcon");
+    document.getElementById(
+        "stopIcon"
+    );
 
 const recordingStatus =
-    document.getElementById("recordingStatus");
+    document.getElementById(
+        "recordingStatus"
+    );
 
 const submitBtn =
-    document.getElementById("submitBtn");
+    document.getElementById(
+        "submitBtn"
+    );
 
 const endInterviewBtn =
-    document.getElementById("endInterviewBtn");
+    document.getElementById(
+        "endInterviewBtn"
+    );
 
 const feedbackSection =
-    document.getElementById("feedbackSection");
+    document.getElementById(
+        "feedbackSection"
+    );
 
 const getFeedbackArea =
-    document.getElementById("getFeedbackArea");
+    document.getElementById(
+        "getFeedbackArea"
+    );
 
 const getFeedbackBtn =
-    document.getElementById("getFeedbackBtn");
+    document.getElementById(
+        "getFeedbackBtn"
+    );
 
 const feedbackContent =
-    document.getElementById("feedbackContent");
+    document.getElementById(
+        "feedbackContent"
+    );
 
 const feedbackSubject =
-    document.getElementById("feedbackSubject");
+    document.getElementById(
+        "feedbackSubject"
+    );
 
 const scoreCircle =
-    document.getElementById("scoreCircle");
+    document.getElementById(
+        "scoreCircle"
+    );
 
 const scoreValue =
-    document.getElementById("scoreValue");
+    document.getElementById(
+        "scoreValue"
+    );
 
 const feedbackText =
-    document.getElementById("feedbackText");
+    document.getElementById(
+        "feedbackText"
+    );
 
 const improvementText =
-    document.getElementById("improvementText");
+    document.getElementById(
+        "improvementText"
+    );
 
 const newInterviewBtn =
-    document.getElementById("newInterviewBtn");
+    document.getElementById(
+        "newInterviewBtn"
+    );
 
 
 // ============================================================
@@ -110,34 +236,54 @@ const newInterviewBtn =
 // ============================================================
 
 const authForms =
-    document.getElementById("authForms");
+    document.getElementById(
+        "authForms"
+    );
 
 const authTitle =
-    document.getElementById("authTitle");
+    document.getElementById(
+        "authTitle"
+    );
 
 const authEmail =
-    document.getElementById("authEmail");
+    document.getElementById(
+        "authEmail"
+    );
 
 const authPassword =
-    document.getElementById("authPassword");
+    document.getElementById(
+        "authPassword"
+    );
 
 const authMessage =
-    document.getElementById("authMessage");
+    document.getElementById(
+        "authMessage"
+    );
 
 const authSubmitBtn =
-    document.getElementById("authSubmitBtn");
+    document.getElementById(
+        "authSubmitBtn"
+    );
 
 const toggleAuthModeBtn =
-    document.getElementById("toggleAuthModeBtn");
+    document.getElementById(
+        "toggleAuthModeBtn"
+    );
 
 const userPanel =
-    document.getElementById("userPanel");
+    document.getElementById(
+        "userPanel"
+    );
 
 const currentUserEmail =
-    document.getElementById("currentUserEmail");
+    document.getElementById(
+        "currentUserEmail"
+    );
 
 const logoutBtn =
-    document.getElementById("logoutBtn");
+    document.getElementById(
+        "logoutBtn"
+    );
 
 
 // ============================================================
@@ -145,7 +291,9 @@ const logoutBtn =
 // ============================================================
 
 const timeRemaining =
-    document.getElementById("timeRemaining");
+    document.getElementById(
+        "timeRemaining"
+    );
 
 
 // ============================================================
@@ -173,6 +321,7 @@ const getFeedbackApiUrl =
 // ============================================================
 
 const iconMap = {
+
     "Self Introduction":
         "fas fa-user text-blue-400",
 
@@ -197,14 +346,18 @@ const iconMap = {
 // AUTH
 // ============================================================
 
-function authHeaders(headers = {}) {
+function authHeaders(
+    headers = {}
+) {
 
     return authToken
         ? {
             ...headers,
+
             Authorization:
                 `Bearer ${authToken}`
         }
+
         : headers;
 }
 
@@ -213,6 +366,10 @@ function setAuthMessage(
     message,
     isError = false
 ) {
+
+    if (!authMessage) {
+        return;
+    }
 
     authMessage.textContent =
         message;
@@ -234,6 +391,15 @@ function setAuthMessage(
 function renderAuthState() {
 
     if (
+        !authForms ||
+        !userPanel
+    ) {
+
+        return;
+    }
+
+
+    if (
         authToken &&
         currentUser
     ) {
@@ -246,11 +412,15 @@ function renderAuthState() {
             "hidden"
         );
 
-        currentUserEmail.textContent =
-            currentUser.email;
+        if (currentUserEmail) {
+
+            currentUserEmail.textContent =
+                currentUser.email;
+        }
 
         return;
     }
+
 
     authForms.classList.remove(
         "hidden"
@@ -260,20 +430,32 @@ function renderAuthState() {
         "hidden"
     );
 
-    authTitle.textContent =
-        authMode === "login"
-            ? "Login"
-            : "Register";
 
-    authSubmitBtn.textContent =
-        authMode === "login"
-            ? "Login"
-            : "Create Account";
+    if (authTitle) {
 
-    toggleAuthModeBtn.textContent =
-        authMode === "login"
-            ? "Need an account? Register"
-            : "Already have an account? Login";
+        authTitle.textContent =
+            authMode === "login"
+                ? "Login"
+                : "Register";
+    }
+
+
+    if (authSubmitBtn) {
+
+        authSubmitBtn.textContent =
+            authMode === "login"
+                ? "Login"
+                : "Create Account";
+    }
+
+
+    if (toggleAuthModeBtn) {
+
+        toggleAuthModeBtn.textContent =
+            authMode === "login"
+                ? "Need an account? Register"
+                : "Already have an account? Login";
+    }
 }
 
 
@@ -283,10 +465,12 @@ function requireAuth() {
         return true;
     }
 
+
     setAuthMessage(
-        "Please login or register before starting an interview.",
+        "Please login before starting an interview.",
         true
     );
+
 
     return false;
 }
@@ -294,11 +478,21 @@ function requireAuth() {
 
 async function submitAuth() {
 
+    if (
+        !authEmail ||
+        !authPassword
+    ) {
+
+        return;
+    }
+
+
     const email =
         authEmail.value.trim();
 
     const password =
         authPassword.value;
+
 
     if (
         !email ||
@@ -313,8 +507,10 @@ async function submitAuth() {
         return;
     }
 
+
     authSubmitBtn.disabled =
         true;
+
 
     setAuthMessage(
         authMode === "login"
@@ -322,12 +518,14 @@ async function submitAuth() {
             : "Creating account..."
     );
 
+
     try {
 
         const response =
             await fetch(
                 `${BASE_URL}/auth/${authMode}`,
                 {
+
                     method: "POST",
 
                     headers: {
@@ -342,8 +540,10 @@ async function submitAuth() {
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (!response.ok) {
 
@@ -353,11 +553,13 @@ async function submitAuth() {
             );
         }
 
+
         authToken =
             data.access_token;
 
         currentUser =
             data.user;
+
 
         localStorage.setItem(
             "authToken",
@@ -366,20 +568,31 @@ async function submitAuth() {
 
         localStorage.setItem(
             "currentUser",
-            JSON.stringify(currentUser)
+            JSON.stringify(
+                currentUser
+            )
         );
+
 
         authPassword.value =
             "";
 
+
         renderAuthState();
 
+
     } catch (error) {
+
+        console.error(
+            "Authentication error:",
+            error
+        );
 
         setAuthMessage(
             error.message,
             true
         );
+
 
     } finally {
 
@@ -393,11 +606,16 @@ function logout() {
 
     stopInterviewTimer();
 
-    authToken = null;
 
-    currentUser = null;
+    authToken =
+        null;
 
-    interviewExpiresAt = null;
+    currentUser =
+        null;
+
+    interviewExpiresAt =
+        null;
+
 
     localStorage.removeItem(
         "authToken"
@@ -407,9 +625,21 @@ function logout() {
         "currentUser"
     );
 
-    resetToWelcome();
+    localStorage.removeItem(
+        "selectedSubject"
+    );
 
-    renderAuthState();
+    localStorage.removeItem(
+        "selectedDuration"
+    );
+
+    localStorage.removeItem(
+        "autoStartInterview"
+    );
+
+
+    window.location.href =
+        "login.html";
 }
 
 
@@ -427,13 +657,16 @@ function formatTime(
             totalSeconds
         );
 
+
     const minutes =
         Math.floor(
             safeSeconds / 60
         );
 
+
     const seconds =
         safeSeconds % 60;
+
 
     return (
         `${String(minutes).padStart(2, "0")}:` +
@@ -448,6 +681,7 @@ function updateTimerDisplay() {
         return;
     }
 
+
     if (!interviewExpiresAt) {
 
         timeRemaining.textContent =
@@ -456,19 +690,25 @@ function updateTimerDisplay() {
         return;
     }
 
+
     const now =
         Date.now();
 
+
     const remainingMilliseconds =
-        interviewExpiresAt - now;
+        interviewExpiresAt -
+        now;
+
 
     const remainingSeconds =
         Math.max(
             0,
             Math.ceil(
-                remainingMilliseconds / 1000
+                remainingMilliseconds /
+                1000
             )
         );
+
 
     timeRemaining.textContent =
         formatTime(
@@ -483,10 +723,12 @@ function startInterviewTimer(
 
     stopInterviewTimer();
 
+
     interviewExpiresAt =
         new Date(
             expiresAt
         ).getTime();
+
 
     if (
         Number.isNaN(
@@ -505,7 +747,9 @@ function startInterviewTimer(
         return;
     }
 
+
     updateTimerDisplay();
+
 
     interviewTimer =
         setInterval(
@@ -544,6 +788,17 @@ function showInterviewPanel(
     currentSubject =
         subject;
 
+
+    // ========================================================
+    // Keep the selected subject available to the application.
+    // ========================================================
+
+    localStorage.setItem(
+        "selectedSubject",
+        subject
+    );
+
+
     subjectBtns.forEach(
         (btn) => {
 
@@ -552,63 +807,79 @@ function showInterviewPanel(
                 btn.dataset.subject ===
                     subject
             );
-
         }
     );
+
 
     welcomeState.classList.add(
         "hidden"
     );
 
+
     interviewState.classList.remove(
         "hidden"
     );
+
 
     feedbackSection.classList.add(
         "hidden"
     );
 
+
     subjectBadge.textContent =
         subject;
+
 
     subjectIcon.className =
         iconMap[subject] +
         " text-2xl";
 
+
     questionNum.textContent =
         "1";
+
 
     speakingBubble.classList.add(
         "hidden"
     );
 
+
     startInterviewBtn.classList.remove(
         "hidden"
     );
 
+
     startInterviewBtn.disabled =
         false;
+
 
     recordBtn.classList.add(
         "hidden"
     );
 
+
     recordBtn.disabled =
         true;
+
 
     submitBtn.disabled =
         true;
 
+
     endInterviewBtn.disabled =
         true;
+
 
     recordingStatus.textContent =
         "Click Start Interview to begin";
 
+
     stopInterviewTimer();
+
 
     interviewExpiresAt =
         null;
+
 
     if (timeRemaining) {
 
@@ -622,24 +893,33 @@ function updateQuestionNumber(
     number
 ) {
 
-    questionNum.textContent =
-        number;
+    if (questionNum) {
+
+        questionNum.textContent =
+            number;
+    }
 }
 
 
 function showSpeakingBubble() {
 
-    speakingBubble.classList.remove(
-        "hidden"
-    );
+    if (speakingBubble) {
+
+        speakingBubble.classList.remove(
+            "hidden"
+        );
+    }
 }
 
 
 function hideSpeakingBubble() {
 
-    speakingBubble.classList.add(
-        "hidden"
-    );
+    if (speakingBubble) {
+
+        speakingBubble.classList.add(
+            "hidden"
+        );
+    }
 }
 
 
@@ -648,8 +928,10 @@ function enableRecording() {
     recordBtn.disabled =
         false;
 
+
     endInterviewBtn.disabled =
         false;
+
 
     recordingStatus.textContent =
         "Click to record";
@@ -661,8 +943,10 @@ function disableRecording() {
     recordBtn.disabled =
         true;
 
+
     submitBtn.disabled =
         true;
+
 
     submitBtn.classList.add(
         "hidden"
@@ -676,21 +960,27 @@ function showFeedbackSection() {
         "hidden"
     );
 
+
     getFeedbackArea.classList.remove(
         "hidden"
     );
+
 
     feedbackContent.classList.add(
         "hidden"
     );
 
+
     endInterviewBtn.disabled =
         true;
 
+
     disableRecording();
+
 
     recordingStatus.textContent =
         "Interview ended";
+
 
     hideSpeakingBubble();
 }
@@ -704,9 +994,11 @@ function displayFeedback(
         data.subject ||
         currentSubject;
 
+
     scoreValue.textContent =
         data.candidate_score ||
         0;
+
 
     const offset =
         301.6 -
@@ -716,20 +1008,25 @@ function displayFeedback(
         ) *
         301.6;
 
+
     scoreCircle.style.strokeDashoffset =
         offset;
+
 
     feedbackText.textContent =
         data.feedback ||
         "No feedback available";
 
+
     improvementText.textContent =
         data.areas_of_improvement ||
         "No suggestions available";
 
+
     getFeedbackArea.classList.add(
         "hidden"
     );
+
 
     feedbackContent.classList.remove(
         "hidden"
@@ -741,8 +1038,10 @@ function resetToWelcome() {
 
     stopInterviewTimer();
 
+
     interviewExpiresAt =
         null;
+
 
     if (timeRemaining) {
 
@@ -750,11 +1049,14 @@ function resetToWelcome() {
             "--:--";
     }
 
+
     currentSubject =
         null;
 
+
     isSpeaking =
         false;
+
 
     if (mediaRecorder) {
 
@@ -766,15 +1068,19 @@ function resetToWelcome() {
             mediaRecorder.stop();
         }
 
+
         mediaRecorder =
             null;
     }
 
+
     recordingChunks =
         [];
 
+
     recordedBlob =
         null;
+
 
     if (currentAudio) {
 
@@ -786,23 +1092,26 @@ function resetToWelcome() {
             null;
     }
 
+
     subjectBtns.forEach(
         (btn) => {
 
             btn.classList.remove(
                 "active"
             );
-
         }
     );
+
 
     welcomeState.classList.remove(
         "hidden"
     );
 
+
     interviewState.classList.add(
         "hidden"
     );
+
 
     recordBtn.classList.remove(
         "bg-red-500",
@@ -810,32 +1119,40 @@ function resetToWelcome() {
         "recording-active"
     );
 
+
     recordBtn.classList.add(
         "bg-zinc-800/80",
         "text-gray-400"
     );
 
+
     micIcon.classList.remove(
         "hidden"
     );
+
 
     stopIcon.classList.add(
         "hidden"
     );
 
+
     submitBtn.classList.add(
         "hidden"
     );
+
 
     speakingBubble.classList.add(
         "hidden"
     );
 
+
     scoreCircle.style.strokeDashoffset =
         301.6;
 
+
     getFeedbackBtn.textContent =
         "Get Feedback";
+
 
     getFeedbackBtn.disabled =
         false;
@@ -844,15 +1161,6 @@ function resetToWelcome() {
 
 // ============================================================
 // AUDIO RESPONSE HANDLER
-// ============================================================
-//
-// IMPORTANT:
-//
-// Instead of using MediaSource/SourceBuffer, we collect the
-// complete Murf response and then play one MP3 Blob.
-//
-// This avoids the "question is in DB but not heard" problem
-// caused by fragile streaming playback state.
 // ============================================================
 
 async function handleAudioStream(
@@ -867,6 +1175,7 @@ async function handleAudioStream(
         );
     }
 
+
     if (!response.body) {
 
         throw new Error(
@@ -874,27 +1183,25 @@ async function handleAudioStream(
         );
     }
 
-    // --------------------------------------------------------
-    // Interviewer is currently speaking.
-    // --------------------------------------------------------
 
     isSpeaking =
         true;
 
+
     recordBtn.disabled =
         true;
+
 
     endInterviewBtn.disabled =
         true;
 
+
     showSpeakingBubble();
+
 
     recordingStatus.textContent =
         "Natalie is speaking...";
 
-    // --------------------------------------------------------
-    // Stop previous audio safely.
-    // --------------------------------------------------------
 
     if (currentAudio) {
 
@@ -906,20 +1213,22 @@ async function handleAudioStream(
             null;
     }
 
-    // --------------------------------------------------------
-    // Read the streamed text/plain response.
-    // Every line is base64 encoded MP3 data.
-    // --------------------------------------------------------
 
     const reader =
         response.body.getReader();
 
+
     const decoder =
         new TextDecoder();
 
-    let textBuffer = "";
 
-    const audioChunks = [];
+    let textBuffer =
+        "";
+
+
+    const audioChunks =
+        [];
+
 
     while (true) {
 
@@ -928,9 +1237,11 @@ async function handleAudioStream(
             value
         } = await reader.read();
 
+
         if (done) {
             break;
         }
+
 
         textBuffer +=
             decoder.decode(
@@ -940,32 +1251,43 @@ async function handleAudioStream(
                 }
             );
 
-        const lines =
-            textBuffer.split("\n");
 
-        // Keep the final incomplete line
-        // for the next network chunk.
+        const lines =
+            textBuffer.split(
+                "\n"
+            );
+
+
         textBuffer =
             lines.pop() || "";
 
-        for (const line of lines) {
+
+        for (
+            const line of lines
+        ) {
 
             const trimmedLine =
                 line.trim();
+
 
             if (!trimmedLine) {
                 continue;
             }
 
+
             try {
 
                 const binaryString =
-                    atob(trimmedLine);
+                    atob(
+                        trimmedLine
+                    );
+
 
                 const bytes =
                     new Uint8Array(
                         binaryString.length
                     );
+
 
                 for (
                     let i = 0;
@@ -979,9 +1301,11 @@ async function handleAudioStream(
                         );
                 }
 
+
                 audioChunks.push(
                     bytes
                 );
+
 
             } catch (error) {
 
@@ -990,6 +1314,7 @@ async function handleAudioStream(
                     error
                 );
 
+
                 throw new Error(
                     "Unable to decode interviewer audio."
                 );
@@ -997,24 +1322,26 @@ async function handleAudioStream(
         }
     }
 
-    // --------------------------------------------------------
-    // Process final buffered line, if any.
-    // --------------------------------------------------------
 
     const finalLine =
         textBuffer.trim();
+
 
     if (finalLine) {
 
         try {
 
             const binaryString =
-                atob(finalLine);
+                atob(
+                    finalLine
+                );
+
 
             const bytes =
                 new Uint8Array(
                     binaryString.length
                 );
+
 
             for (
                 let i = 0;
@@ -1028,9 +1355,11 @@ async function handleAudioStream(
                     );
             }
 
+
             audioChunks.push(
                 bytes
             );
+
 
         } catch (error) {
 
@@ -1039,22 +1368,24 @@ async function handleAudioStream(
                 error
             );
 
+
             throw new Error(
                 "Unable to decode final interviewer audio."
             );
         }
     }
 
-    if (audioChunks.length === 0) {
+
+    if (
+        audioChunks.length ===
+        0
+    ) {
 
         throw new Error(
             "The backend returned no audio data."
         );
     }
 
-    // --------------------------------------------------------
-    // Combine chunks into a single MP3 Blob.
-    // --------------------------------------------------------
 
     const audioBlob =
         new Blob(
@@ -1064,26 +1395,27 @@ async function handleAudioStream(
             }
         );
 
+
     const audioUrl =
         URL.createObjectURL(
             audioBlob
         );
+
 
     currentAudio =
         new Audio(
             audioUrl
         );
 
+
     currentAudio.preload =
         "auto";
 
-    // --------------------------------------------------------
-    // Play question.
-    // --------------------------------------------------------
 
     try {
 
         await currentAudio.play();
+
 
     } catch (error) {
 
@@ -1092,27 +1424,26 @@ async function handleAudioStream(
             error
         );
 
-        // Autoplay restrictions may occur.
-        // The audio element is still available, so provide
-        // a useful status instead of silently failing.
+
         recordingStatus.textContent =
             "Click the page once to allow interviewer audio.";
+
 
         isSpeaking =
             false;
 
+
         hideSpeakingBubble();
+
 
         URL.revokeObjectURL(
             audioUrl
         );
 
+
         return;
     }
 
-    // --------------------------------------------------------
-    // Audio has finished.
-    // --------------------------------------------------------
 
     await new Promise(
         (resolve) => {
@@ -1123,16 +1454,20 @@ async function handleAudioStream(
                     isSpeaking =
                         false;
 
+
                     hideSpeakingBubble();
+
 
                     URL.revokeObjectURL(
                         audioUrl
                     );
 
+
                     if (onComplete) {
 
                         onComplete();
                     }
+
 
                     resolve();
                 };
@@ -1144,15 +1479,17 @@ async function handleAudioStream(
                     isSpeaking =
                         false;
 
+
                     hideSpeakingBubble();
+
 
                     URL.revokeObjectURL(
                         audioUrl
                     );
 
+
                     resolve();
                 };
-
         }
     );
 }
@@ -1172,10 +1509,12 @@ async function startRecording() {
                     audio: true
                 });
 
+
         const options = {
             mimeType:
                 "audio/webm;codecs=opus"
         };
+
 
         if (
             !MediaRecorder.isTypeSupported(
@@ -1187,14 +1526,17 @@ async function startRecording() {
                 "audio/webm";
         }
 
+
         mediaRecorder =
             new MediaRecorder(
                 stream,
                 options
             );
 
+
         recordingChunks =
             [];
+
 
         mediaRecorder.ondataavailable =
             (event) => {
@@ -1209,6 +1551,7 @@ async function startRecording() {
                 }
             };
 
+
         mediaRecorder.onstop =
             () => {
 
@@ -1221,6 +1564,7 @@ async function startRecording() {
                         }
                     );
 
+
                 stream
                     .getTracks()
                     .forEach(
@@ -1228,42 +1572,52 @@ async function startRecording() {
                             track.stop()
                     );
 
+
                 recordBtn.classList.remove(
                     "bg-red-500",
                     "text-white",
                     "recording-active"
                 );
 
+
                 recordBtn.classList.add(
                     "bg-zinc-800/80",
                     "text-gray-400"
                 );
 
+
                 micIcon.classList.remove(
                     "hidden"
                 );
+
 
                 stopIcon.classList.add(
                     "hidden"
                 );
 
+
                 recordingStatus.textContent =
                     "Recording complete";
+
 
                 submitBtn.classList.remove(
                     "hidden"
                 );
 
+
                 submitBtn.disabled =
                     false;
             };
 
+
         mediaRecorder.start();
+
 
         recordBtn.classList.remove(
             "bg-zinc-800/80",
             "text-gray-400"
         );
+
 
         recordBtn.classList.add(
             "bg-red-500",
@@ -1271,23 +1625,29 @@ async function startRecording() {
             "recording-active"
         );
 
+
         micIcon.classList.add(
             "hidden"
         );
+
 
         stopIcon.classList.remove(
             "hidden"
         );
 
+
         recordingStatus.textContent =
             "Recording...";
+
 
         submitBtn.classList.add(
             "hidden"
         );
 
+
         endInterviewBtn.disabled =
             true;
+
 
     } catch (error) {
 
@@ -1295,6 +1655,7 @@ async function startRecording() {
             "Microphone error:",
             error
         );
+
 
         recordingStatus.textContent =
             "Microphone access denied.";
@@ -1308,6 +1669,7 @@ function stopRecording() {
         return;
     }
 
+
     if (
         mediaRecorder.state ===
         "inactive"
@@ -1316,11 +1678,14 @@ function stopRecording() {
         return;
     }
 
+
     recordingStatus.textContent =
         "Processing recording...";
 
+
     submitBtn.disabled =
         true;
+
 
     mediaRecorder.stop();
 }
@@ -1336,19 +1701,49 @@ async function startInterview() {
         return;
     }
 
+
+    // ========================================================
+    // Safety check:
+    // Make sure a subject exists before calling the backend.
+    // ========================================================
+
+    if (!currentSubject) {
+
+        throw new Error(
+            "No interview subject selected."
+        );
+    }
+
+
     startInterviewBtn.disabled =
         true;
+
 
     startInterviewBtn.classList.add(
         "hidden"
     );
 
+
     recordBtn.classList.remove(
         "hidden"
     );
 
+
     recordingStatus.textContent =
         "Connecting...";
+
+
+    console.log(
+        "Starting interview with:",
+        {
+            subject:
+                currentSubject,
+
+            duration_minutes:
+                selectedDuration
+        }
+    );
+
 
     try {
 
@@ -1356,6 +1751,7 @@ async function startInterview() {
             await fetch(
                 startInterviewApiUrl,
                 {
+
                     method: "POST",
 
                     headers:
@@ -1364,16 +1760,18 @@ async function startInterview() {
                                 "application/json"
                         }),
 
-                    body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                        subject:
-                            currentSubject,
+                            subject:
+                                currentSubject,
 
-                        duration_minutes:
-                            2
-                    })
+                            duration_minutes:
+                                selectedDuration
+                        })
                 }
             );
+
 
         if (!response.ok) {
 
@@ -1382,14 +1780,12 @@ async function startInterview() {
             );
         }
 
-        // ====================================================
-        // Read server expiry.
-        // ====================================================
 
         const expiresAt =
             response.headers.get(
                 "X-Interview-Expires-At"
             );
+
 
         if (!expiresAt) {
 
@@ -1398,41 +1794,44 @@ async function startInterview() {
             );
         }
 
+
         interviewExpiresAt =
             new Date(
                 expiresAt
             ).getTime();
 
+
         startInterviewTimer(
             expiresAt
         );
+
 
         console.log(
             "Interview expires at:",
             expiresAt
         );
 
-        // ====================================================
-        // Read first interviewer response.
-        // ====================================================
 
         await handleAudioStream(
             response,
+
             () => {
 
                 if (
                     !interviewExpiresAt ||
                     Date.now() <
-                    interviewExpiresAt
+                        interviewExpiresAt
                 ) {
 
                     enableRecording();
                 }
 
+
                 endInterviewBtn.disabled =
                     false;
             }
         );
+
 
     } catch (error) {
 
@@ -1441,24 +1840,31 @@ async function startInterview() {
             error
         );
 
+
         recordingStatus.textContent =
             error.message ||
             "Backend not connected";
 
+
         hideSpeakingBubble();
+
 
         recordBtn.classList.add(
             "hidden"
         );
 
+
         startInterviewBtn.classList.remove(
             "hidden"
         );
 
+
         startInterviewBtn.disabled =
             false;
 
+
         stopInterviewTimer();
+
 
         interviewExpiresAt =
             null;
@@ -1481,13 +1887,17 @@ async function submitAnswer() {
         return;
     }
 
+
     disableRecording();
+
 
     recordingStatus.textContent =
         "Submitting answer...";
 
+
     const formData =
         new FormData();
+
 
     formData.append(
         "audio",
@@ -1495,12 +1905,14 @@ async function submitAnswer() {
         "answer.webm"
     );
 
+
     try {
 
         const response =
             await fetch(
                 submitAnswerApiUrl,
                 {
+
                     method: "POST",
 
                     headers:
@@ -1510,34 +1922,36 @@ async function submitAnswer() {
                 }
             );
 
-        // ====================================================
-        // Read completion headers FIRST.
-        // ====================================================
 
         const isComplete =
             response.headers.get(
                 "X-Interview-Complete"
             ) === "true";
 
+
         const questionNumber =
             response.headers.get(
                 "X-Question-Number"
             );
+
 
         console.log(
             "Submit answer response:",
             response.status
         );
 
+
         console.log(
             "Question number:",
             questionNumber
         );
 
+
         console.log(
             "Interview complete:",
             isComplete
         );
+
 
         if (questionNumber) {
 
@@ -1546,6 +1960,7 @@ async function submitAnswer() {
             );
         }
 
+
         if (!response.ok) {
 
             throw new Error(
@@ -1553,54 +1968,43 @@ async function submitAnswer() {
             );
         }
 
-        // ====================================================
-        // Clear recording state AFTER successful submission.
-        // ====================================================
 
         recordedBlob =
             null;
 
+
         recordingChunks =
             [];
 
-        // ====================================================
-        // IMPORTANT:
-        //
-        // The response itself contains the NEXT QUESTION AUDIO.
-        //
-        // We now explicitly WAIT for that audio to finish.
-        // ====================================================
 
         await handleAudioStream(
             response,
             () => {}
         );
 
-        // ====================================================
-        // If backend says interview is complete,
-        // do NOT enable another recording.
-        // ====================================================
 
         if (isComplete) {
 
             stopInterviewTimer();
 
+
             interviewExpiresAt =
                 null;
 
+
             showFeedbackSection();
+
 
             return;
         }
 
-        // ====================================================
-        // Otherwise allow the next answer.
-        // ====================================================
 
         enableRecording();
 
+
         endInterviewBtn.disabled =
             false;
+
 
     } catch (error) {
 
@@ -1609,11 +2013,14 @@ async function submitAnswer() {
             error
         );
 
+
         recordingStatus.textContent =
             error.message ||
             "Connection error";
 
+
         hideSpeakingBubble();
+
 
         if (
             !interviewExpiresAt ||
@@ -1622,6 +2029,7 @@ async function submitAnswer() {
         ) {
 
             enableRecording();
+
 
             endInterviewBtn.disabled =
                 false;
@@ -1645,13 +2053,17 @@ async function endInterview() {
         return;
     }
 
+
     disableRecording();
+
 
     endInterviewBtn.disabled =
         true;
 
+
     recordingStatus.textContent =
         "Ending interview...";
+
 
     try {
 
@@ -1659,6 +2071,7 @@ async function endInterview() {
             await fetch(
                 endInterviewApiUrl,
                 {
+
                     method: "POST",
 
                     headers:
@@ -1669,6 +2082,7 @@ async function endInterview() {
                 }
             );
 
+
         if (!response.ok) {
 
             throw new Error(
@@ -1676,8 +2090,10 @@ async function endInterview() {
             );
         }
 
+
         const data =
             await response.json();
+
 
         if (!data.success) {
 
@@ -1687,15 +2103,20 @@ async function endInterview() {
             );
         }
 
+
         stopInterviewTimer();
+
 
         interviewExpiresAt =
             null;
 
+
         recordingStatus.textContent =
             "Interview completed. Generating feedback...";
 
+
         await getFeedback();
+
 
     } catch (error) {
 
@@ -1704,8 +2125,10 @@ async function endInterview() {
             error
         );
 
+
         recordingStatus.textContent =
             "Could not end interview";
+
 
         endInterviewBtn.disabled =
             false;
@@ -1721,11 +2144,14 @@ async function getFeedback() {
 
     showFeedbackSection();
 
+
     getFeedbackBtn.textContent =
         "Generating...";
 
+
     getFeedbackBtn.disabled =
         true;
+
 
     try {
 
@@ -1733,6 +2159,7 @@ async function getFeedback() {
             await fetch(
                 getFeedbackApiUrl,
                 {
+
                     method: "POST",
 
                     headers:
@@ -1741,18 +2168,22 @@ async function getFeedback() {
                                 "application/json"
                         }),
 
-                    body: JSON.stringify({})
+                    body:
+                        JSON.stringify({})
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (data.success) {
 
             displayFeedback(
                 data.feedback
             );
+
 
         } else {
 
@@ -1762,6 +2193,7 @@ async function getFeedback() {
             );
         }
 
+
     } catch (error) {
 
         console.error(
@@ -1769,8 +2201,10 @@ async function getFeedback() {
             error
         );
 
+
         getFeedbackBtn.textContent =
             "Error - Retry";
+
 
         getFeedbackBtn.disabled =
             false;
@@ -1789,9 +2223,13 @@ subjectBtns.forEach(
             "click",
             () => {
 
-                if (!requireAuth()) {
+                if (
+                    !requireAuth()
+                ) {
+
                     return;
                 }
+
 
                 if (
                     currentSubject ===
@@ -1801,7 +2239,9 @@ subjectBtns.forEach(
                     return;
                 }
 
+
                 resetToWelcome();
+
 
                 showInterviewPanel(
                     btn.dataset.subject
@@ -1829,6 +2269,7 @@ recordBtn.addEventListener(
 
             return;
         }
+
 
         if (
             !mediaRecorder ||
@@ -1870,35 +2311,121 @@ newInterviewBtn.addEventListener(
 );
 
 
-toggleAuthModeBtn.addEventListener(
-    "click",
-    () => {
+if (toggleAuthModeBtn) {
 
-        authMode =
-            authMode === "login"
-                ? "register"
-                : "login";
+    toggleAuthModeBtn.addEventListener(
+        "click",
+        () => {
 
-        authMessage.classList.add(
-            "hidden"
+            authMode =
+                authMode === "login"
+                    ? "register"
+                    : "login";
+
+
+            if (authMessage) {
+
+                authMessage.classList.add(
+                    "hidden"
+                );
+            }
+
+
+            renderAuthState();
+        }
+    );
+}
+
+
+if (authSubmitBtn) {
+
+    authSubmitBtn.addEventListener(
+        "click",
+        submitAuth
+    );
+}
+
+
+if (logoutBtn) {
+
+    logoutBtn.addEventListener(
+        "click",
+        logout
+    );
+}
+
+
+// ============================================================
+// DASHBOARD LAUNCH INITIALIZATION
+// ============================================================
+//
+// When launched from dashboard.html:
+//
+// 1. Apply the selected subject.
+// 2. Apply the selected duration.
+// 3. Show the interview room.
+// 4. Automatically start the interview.
+// ============================================================
+
+function initializeDashboardLaunch() {
+
+    if (!dashboardSelectedSubject) {
+
+        console.log(
+            "[Dashboard Launch] No dashboard configuration found."
         );
 
-        renderAuthState();
+        return;
     }
-);
 
 
-authSubmitBtn.addEventListener(
-    "click",
-    submitAuth
-);
+    console.log(
+        "[Dashboard Launch] Applying subject:",
+        dashboardSelectedSubject
+    );
 
 
-logoutBtn.addEventListener(
-    "click",
-    logout
-);
+    showInterviewPanel(
+        dashboardSelectedSubject
+    );
 
+
+    if (dashboardAutoStart) {
+
+        console.log(
+            "[Dashboard Launch] Auto-start enabled."
+        );
+
+
+        setTimeout(
+            () => {
+
+                startInterview();
+
+            },
+            700
+        );
+    }
+}
+
+
+// ============================================================
+// DOM READY
+// ============================================================
+
+if (
+    document.readyState === "loading"
+) {
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeDashboardLaunch
+    );
+
+} else {
+
+    initializeDashboardLaunch();
+}
 
 // ============================================================
 // INITIAL AUTH STATE

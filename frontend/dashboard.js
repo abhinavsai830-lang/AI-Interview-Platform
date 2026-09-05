@@ -2,8 +2,6 @@
 // DASHBOARD STATE
 // ============================================================
 
-const BASE_URL = "http://127.0.0.1:8000";
-
 let authToken =
     localStorage.getItem("authToken");
 
@@ -11,8 +9,11 @@ let currentUser = JSON.parse(
     localStorage.getItem("currentUser") || "null"
 );
 
-let selectedTopic = "Python";
-let selectedDuration = 10;
+let selectedTopic =
+    "Python";
+
+let selectedDuration =
+    10;
 
 
 // ============================================================
@@ -74,7 +75,11 @@ const durationButtons =
 
 function requireAuthentication() {
 
-    if (authToken) {
+    if (
+        authToken &&
+        currentUser
+    ) {
+
         return true;
     }
 
@@ -86,53 +91,65 @@ function requireAuthentication() {
 
 
 // ============================================================
-// USER DISPLAY
+// USER INFORMATION
 // ============================================================
 
 function getDisplayName() {
 
-    if (!currentUser) {
-        return "Candidate";
-    }
-
     const email =
-        currentUser.email || "";
+        currentUser?.email || "";
 
     if (!email) {
+
         return "Candidate";
     }
 
-    const namePart =
+    const username =
         email.split("@")[0];
 
-    if (!namePart) {
+    if (!username) {
+
         return "Candidate";
     }
 
-    return namePart.charAt(0).toUpperCase()
-        + namePart.slice(1);
+    return (
+        username.charAt(0).toUpperCase() +
+        username.slice(1)
+    );
 }
 
 
 function renderUserInformation() {
 
-    const displayName =
+    const name =
         getDisplayName();
 
     const email =
         currentUser?.email || "--";
 
-    welcomeUserName.textContent =
-        displayName;
+    if (welcomeUserName) {
 
-    navUserName.textContent =
-        displayName;
+        welcomeUserName.textContent =
+            name;
+    }
 
-    navUserEmail.textContent =
-        email;
+    if (navUserName) {
 
-    profileEmail.textContent =
-        email;
+        navUserName.textContent =
+            name;
+    }
+
+    if (navUserEmail) {
+
+        navUserEmail.textContent =
+            email;
+    }
+
+    if (profileEmail) {
+
+        profileEmail.textContent =
+            email;
+    }
 }
 
 
@@ -146,6 +163,7 @@ function showDashboardMessage(
 ) {
 
     if (!dashboardMessage) {
+
         return;
     }
 
@@ -184,6 +202,7 @@ function showDashboardMessage(
 function hideDashboardMessage() {
 
     if (dashboardMessage) {
+
         dashboardMessage.classList.add(
             "hidden"
         );
@@ -205,20 +224,30 @@ function selectTopic(topic) {
 
             button.classList.toggle(
                 "active",
-                button.dataset.topic === topic
+                button.dataset.topic ===
+                    selectedTopic
             );
 
         }
     );
 
-    selectedTopicLabel.textContent =
-        `${topic} selected`;
+    if (selectedTopicLabel) {
 
-    ctaTopic.textContent =
-        topic;
+        selectedTopicLabel.textContent =
+            `${selectedTopic} selected`;
+    }
 
-    focusArea.textContent =
-        topic;
+    if (ctaTopic) {
+
+        ctaTopic.textContent =
+            selectedTopic;
+    }
+
+    if (focusArea) {
+
+        focusArea.textContent =
+            selectedTopic;
+    }
 }
 
 
@@ -234,7 +263,6 @@ topicButtons.forEach(
                 );
             }
         );
-
     }
 );
 
@@ -245,19 +273,37 @@ topicButtons.forEach(
 
 function selectDuration(duration) {
 
-    selectedDuration =
+    const value =
         Number(duration);
+
+    if (
+        !Number.isFinite(value) ||
+        value < 10 ||
+        value > 60
+    ) {
+
+        return;
+    }
+
+    selectedDuration =
+        value;
 
     durationButtons.forEach(
         (button) => {
 
             button.classList.toggle(
                 "active",
-                Number(button.dataset.duration) ===
+                Number(
+                    button.dataset.duration
+                ) ===
                     selectedDuration
             );
-
         }
+    );
+
+    console.log(
+        "Dashboard duration selected:",
+        selectedDuration
     );
 }
 
@@ -274,7 +320,6 @@ durationButtons.forEach(
                 );
             }
         );
-
     }
 );
 
@@ -282,58 +327,84 @@ durationButtons.forEach(
 // ============================================================
 // START INTERVIEW
 // ============================================================
+//
+// The dashboard passes the configuration directly in the URL.
+// This makes the handoff deterministic and easy to debug.
+//
+// Example:
+//
+// index.html?subject=Generative+AI&duration=20&autoStart=true
+// ============================================================
 
 function openInterviewRoom() {
 
     if (!requireAuthentication()) {
+
         return;
     }
 
     hideDashboardMessage();
 
-    // --------------------------------------------------------
-    // Store the selected configuration so the interview room
-    // can use the same values.
-    // --------------------------------------------------------
 
-    localStorage.setItem(
-        "selectedSubject",
+    const params =
+        new URLSearchParams();
+
+    params.set(
+        "subject",
         selectedTopic
     );
 
-    localStorage.setItem(
-        "selectedDuration",
+    params.set(
+        "duration",
         String(selectedDuration)
     );
 
-    // --------------------------------------------------------
-    // Navigate to the existing working interview room.
-    // The actual backend API call remains inside index.js.
-    // --------------------------------------------------------
+    params.set(
+        "autoStart",
+        "true"
+    );
+
+
+    const interviewUrl =
+        `index.html?${params.toString()}`;
+
+
+    console.log(
+        "Launching interview:",
+        {
+            subject:
+                selectedTopic,
+
+            duration:
+                selectedDuration,
+
+            url:
+                interviewUrl
+        }
+    );
+
 
     window.location.href =
-        "index.html";
+        interviewUrl;
 }
 
 
-heroStartBtn.addEventListener(
-    "click",
-    () => {
+if (heroStartBtn) {
 
-        openInterviewRoom();
+    heroStartBtn.addEventListener(
+        "click",
+        openInterviewRoom
+    );
+}
 
-    }
-);
 
+if (startInterviewBtn) {
 
-startInterviewBtn.addEventListener(
-    "click",
-    () => {
-
-        openInterviewRoom();
-
-    }
-);
+    startInterviewBtn.addEventListener(
+        "click",
+        openInterviewRoom
+    );
+}
 
 
 // ============================================================
@@ -358,15 +429,22 @@ function logout() {
         "selectedDuration"
     );
 
+    localStorage.removeItem(
+        "autoStartInterview"
+    );
+
     window.location.href =
         "login.html";
 }
 
 
-logoutBtn.addEventListener(
-    "click",
-    logout
-);
+if (logoutBtn) {
+
+    logoutBtn.addEventListener(
+        "click",
+        logout
+    );
+}
 
 
 // ============================================================
@@ -376,6 +454,7 @@ logoutBtn.addEventListener(
 function initializeDashboard() {
 
     if (!requireAuthentication()) {
+
         return;
     }
 

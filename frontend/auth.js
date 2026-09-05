@@ -1,16 +1,19 @@
 // ============================================================
 // AUTHENTICATION PAGE LOGIC
-// NEW FILE
 // ============================================================
 
-const AUTH_API_BASE_URL = "http://127.0.0.1:8000";
+const AUTH_API_BASE_URL =
+    "http://127.0.0.1:8000";
 
 
 // ============================================================
 // SHARED UI HELPERS
 // ============================================================
 
-function showAuthMessage(message, type = "error") {
+function showAuthMessage(
+    message,
+    type = "error"
+) {
 
     const element =
         document.getElementById("authMessage");
@@ -19,7 +22,8 @@ function showAuthMessage(message, type = "error") {
         return;
     }
 
-    element.textContent = message;
+    element.textContent =
+        message;
 
     element.classList.remove(
         "hidden",
@@ -60,7 +64,10 @@ function hideAuthMessage() {
         document.getElementById("authMessage");
 
     if (element) {
-        element.classList.add("hidden");
+
+        element.classList.add(
+            "hidden"
+        );
     }
 }
 
@@ -93,7 +100,8 @@ function setupPasswordToggle() {
         () => {
 
             const isPassword =
-                passwordInput.type === "password";
+                passwordInput.type ===
+                "password";
 
             passwordInput.type =
                 isPassword
@@ -112,11 +120,18 @@ function setupPasswordToggle() {
 // ============================================================
 // REDIRECT IF ALREADY AUTHENTICATED
 // ============================================================
+//
+// CHANGED:
+// Authenticated users now go to the dashboard instead of
+// directly entering the interview room.
+// ============================================================
 
 function redirectAuthenticatedUser() {
 
     const token =
-        localStorage.getItem("authToken");
+        localStorage.getItem(
+            "authToken"
+        );
 
     if (token) {
 
@@ -179,11 +194,9 @@ function initLoginPage() {
     const spinner =
         document.getElementById("loginSpinner");
 
-
     if (!loginButton) {
         return;
     }
-
 
     async function login() {
 
@@ -195,7 +208,6 @@ function initLoginPage() {
         const password =
             passwordInput.value;
 
-
         if (!email || !password) {
 
             showAuthMessage(
@@ -205,8 +217,8 @@ function initLoginPage() {
             return;
         }
 
-
-        loginButton.disabled = true;
+        loginButton.disabled =
+            true;
 
         buttonText.textContent =
             "Signing in...";
@@ -214,7 +226,6 @@ function initLoginPage() {
         spinner.classList.remove(
             "hidden"
         );
-
 
         try {
 
@@ -236,7 +247,6 @@ function initLoginPage() {
                     }
                 );
 
-
             let data;
 
             try {
@@ -251,7 +261,6 @@ function initLoginPage() {
                 );
             }
 
-
             if (!response.ok) {
 
                 throw new Error(
@@ -260,15 +269,14 @@ function initLoginPage() {
                 );
             }
 
-
-            storeAuthentication(data);
-
+            storeAuthentication(
+                data
+            );
 
             showAuthMessage(
                 "Login successful. Redirecting...",
                 "success"
             );
-
 
             setTimeout(
                 () => {
@@ -279,7 +287,6 @@ function initLoginPage() {
                 },
                 400
             );
-
 
         } catch (error) {
 
@@ -293,10 +300,10 @@ function initLoginPage() {
                 "Unable to login."
             );
 
-
         } finally {
 
-            loginButton.disabled = false;
+            loginButton.disabled =
+                false;
 
             buttonText.textContent =
                 "Sign In";
@@ -307,33 +314,33 @@ function initLoginPage() {
         }
     }
 
-
     loginButton.addEventListener(
         "click",
         login
     );
-
 
     passwordInput.addEventListener(
         "keydown",
         (event) => {
 
             if (
-                event.key === "Enter"
+                event.key ===
+                "Enter"
             ) {
                 login();
             }
         }
     );
 
-
     emailInput.addEventListener(
         "keydown",
         (event) => {
 
             if (
-                event.key === "Enter"
+                event.key ===
+                "Enter"
             ) {
+
                 passwordInput.focus();
             }
         }
@@ -366,11 +373,9 @@ function initRegisterPage() {
     const spinner =
         document.getElementById("registerSpinner");
 
-
     if (!registerButton) {
         return;
     }
-
 
     async function register() {
 
@@ -382,7 +387,6 @@ function initRegisterPage() {
         const password =
             passwordInput.value;
 
-
         if (!email || !password) {
 
             showAuthMessage(
@@ -391,7 +395,6 @@ function initRegisterPage() {
 
             return;
         }
-
 
         if (password.length < 8) {
 
@@ -402,8 +405,8 @@ function initRegisterPage() {
             return;
         }
 
-
-        registerButton.disabled = true;
+        registerButton.disabled =
+            true;
 
         buttonText.textContent =
             "Creating account...";
@@ -411,7 +414,6 @@ function initRegisterPage() {
         spinner.classList.remove(
             "hidden"
         );
-
 
         try {
 
@@ -433,7 +435,6 @@ function initRegisterPage() {
                     }
                 );
 
-
             let data;
 
             try {
@@ -448,7 +449,6 @@ function initRegisterPage() {
                 );
             }
 
-
             if (!response.ok) {
 
                 throw new Error(
@@ -457,26 +457,29 @@ function initRegisterPage() {
                 );
             }
 
-
-            storeAuthentication(data);
-
+            storeAuthentication(
+                data
+            );
 
             showAuthMessage(
                 "Account created successfully. Redirecting...",
                 "success"
             );
 
+            // ==================================================
+            // FIX:
+            // Registration now goes to the dashboard.
+            // ==================================================
 
             setTimeout(
                 () => {
 
                     window.location.href =
-                        "index.html";
+                        "dashboard.html";
 
                 },
                 500
             );
-
 
         } catch (error) {
 
@@ -490,10 +493,10 @@ function initRegisterPage() {
                 "Unable to create account."
             );
 
-
         } finally {
 
-            registerButton.disabled = false;
+            registerButton.disabled =
+                false;
 
             buttonText.textContent =
                 "Create Account";
@@ -504,19 +507,18 @@ function initRegisterPage() {
         }
     }
 
-
     registerButton.addEventListener(
         "click",
         register
     );
-
 
     passwordInput.addEventListener(
         "keydown",
         (event) => {
 
             if (
-                event.key === "Enter"
+                event.key ===
+                "Enter"
             ) {
                 register();
             }
