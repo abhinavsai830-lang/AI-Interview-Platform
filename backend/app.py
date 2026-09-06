@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import create_react_agent
 from langchain_groq import ChatGroq
+from groq import RateLimitError
 
 from .auth import get_current_user
 from .schemas import InterviewRequest
@@ -171,6 +172,200 @@ def is_interview_expired(
     now = datetime.now(timezone.utc)
 
     return now >= session.expires_at
+
+
+# ============================================================
+# GROQ ERROR HANDLING
+# ============================================================
+# NEW:
+# Keep Groq rate-limit failures from becoming opaque 500 errors.
+# The interview can fall back to persisted data when the model
+# is temporarily unavailable.
+# ============================================================
+
+def is_groq_rate_limit_error(error: Exception) -> bool:
+    if isinstance(error, RateLimitError):
+        return True
+
+    error_text = str(error).lower()
+
+    return (
+        "rate limit" in error_text
+        or "rate_limit_exceeded" in error_text
+        or "error code: 429" in error_text
+        or "http 429" in error_text
+    )
+
+
+def extract_message_content(content) -> str:
+    if isinstance(content, list):
+        return "".join(
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict)
+            and part.get("type") == "text"
+        ).strip()
+
+    return str(content).strip()
+
+
+def build_interview_transcript(
+    db: Session,
+    interview_id: int,
+) -> str:
+    questions = (
+        db.query(InterviewQuestion)
+        .filter(
+            InterviewQuestion.interview_id == interview_id
+        )
+        .order_by(
+            InterviewQuestion.question_number.asc()
+        )
+        .all()
+    )
+
+    transcript_parts = []
+
+    for question in questions:
+        transcript_parts.append(
+            f"INTERVIEWER:\n{question.question_text}"
+        )
+
+        answer = (
+            db.query(InterviewAnswer)
+            .filter(
+                InterviewAnswer.question_id == question.id
+            )
+            .first()
+        )
+
+        if answer:
+            transcript_parts.append(
+                f"CANDIDATE:\n{answer.transcript}"
+            )
+
+    return "\n\n".join(transcript_parts)
+
+
+def calculate_fallback_feedback(
+    db: Session,
+    interview_id: int,
+    subject: str,
+) -> dict:
+    questions = (
+        db.query(InterviewQuestion)
+        .filter(
+            InterviewQuestion.interview_id == interview_id
+        )
+        .order_by(
+            InterviewQuestion.question_number.asc()
+        )
+        .all()
+    )
+
+    analyses = []
+
+    for question in questions:
+        answer = (
+            db.query(InterviewAnswer)
+            .filter(
+                InterviewAnswer.question_id == question.id
+            )
+            .first()
+        )
+
+        if answer and answer.analysis:
+            analyses.append(answer.analysis)
+
+    if not analyses:
+        return {
+            "subject": subject or "Interview",
+            "candidate_score": 3,
+            "feedback": (
+                "Your interview responses were saved, but detailed "
+                "AI feedback is temporarily unavailable because the "
+                "language model is rate-limited."
+            ),
+            "areas_of_improvement": (
+                "Please retry feedback after the model rate limit "
+                "resets so a detailed response-level evaluation can "
+                "be generated."
+            ),
+        }
+
+    average_score = sum(
+        (
+            analysis.relevance_score
+            + analysis.correctness_score
+            + analysis.clarity_score
+            + analysis.depth_score
+        ) / 4
+        for analysis in analyses
+    ) / len(analyses)
+
+    candidate_score = min(
+        5,
+        max(
+            1,
+            int(round(average_score))
+        )
+    )
+
+    strengths = [
+        analysis.strengths
+        for analysis in analyses
+        if analysis.strengths
+        and "unable to analyze" not in analysis.strengths.lower()
+    ]
+
+    knowledge_gaps = [
+        analysis.knowledge_gaps
+        for analysis in analyses
+        if analysis.knowledge_gaps
+        and "no analysis was available"
+        not in analysis.knowledge_gaps.lower()
+    ]
+
+    if candidate_score >= 4:
+        opening = (
+            "You demonstrated strong overall performance across "
+            "the recorded responses."
+        )
+    elif candidate_score == 3:
+        opening = (
+            "You demonstrated a reasonable foundation across "
+            "the recorded responses."
+        )
+    else:
+        opening = (
+            "You showed some understanding, but several responses "
+            "would benefit from stronger explanation or technical depth."
+        )
+
+    strengths_text = (
+        "; ".join(dict.fromkeys(strengths[:4]))
+        if strengths
+        else
+        "Keep developing clear, direct explanations backed by examples."
+    )
+
+    gaps_text = (
+        "; ".join(dict.fromkeys(knowledge_gaps[:4]))
+        if knowledge_gaps
+        else
+        "Continue strengthening technical depth and confidence in weaker areas."
+    )
+
+    return {
+        "subject": subject or "Interview",
+        "candidate_score": candidate_score,
+        "feedback": (
+            f"{opening} Key observed strengths: {strengths_text}"
+        ),
+        "areas_of_improvement": (
+            f"Focus on these areas next: {gaps_text}"
+        ),
+    }
 
 
 # ============================================================
@@ -572,6 +767,13 @@ def speech_to_text(
 # This analysis is internal and stored in the database.
 # The candidate does not see these scores yet.
 # ============================================================
+# ============================================================
+# RESPONSE QUALITY ANALYSIS
+# ============================================================
+# PHASE 4.1 + PHASE 4.2:
+# Analyze each candidate answer and calculate the next
+# question difficulty deterministically from the four scores.
+# ============================================================
 
 def analyze_candidate_answer(
     subject: str,
@@ -605,8 +807,7 @@ Return ONLY valid JSON in exactly this structure:
     "clarity_score": <integer from 1 to 5>,
     "depth_score": <integer from 1 to 5>,
     "strengths": "<brief description of demonstrated strengths>",
-    "knowledge_gaps": "<brief description of missing or weak areas>",
-    "difficulty_recommendation": "increase|maintain|decrease"
+    "knowledge_gaps": "<brief description of missing or weak areas>"
 }}
 
 SCORING:
@@ -630,18 +831,6 @@ depth_score:
 1 = superficial or extremely limited
 3 = reasonable basic explanation
 5 = detailed explanation with useful reasoning or examples
-
-DIFFICULTY:
-
-increase:
-Use when the candidate demonstrates strong understanding.
-
-maintain:
-Use when the candidate demonstrates reasonable understanding.
-
-decrease:
-Use when the candidate appears uncertain, gives an incomplete answer,
-or demonstrates a knowledge gap.
 
 Be concise.
 
@@ -693,48 +882,79 @@ Return JSON only.
 
                 return 3
 
-        recommendation = parsed.get(
-            "difficulty_recommendation",
-            "maintain"
+        # ====================================================
+        # PHASE 4.2:
+        # Normalize the four AI-generated scores first.
+        # ====================================================
+
+        relevance_score = safe_score(
+            parsed.get(
+                "relevance_score"
+            )
         )
 
-        if recommendation not in {
-            "increase",
-            "maintain",
-            "decrease",
-        }:
+        correctness_score = safe_score(
+            parsed.get(
+                "correctness_score"
+            )
+        )
 
-            recommendation = "maintain"
+        clarity_score = safe_score(
+            parsed.get(
+                "clarity_score"
+            )
+        )
+
+        depth_score = safe_score(
+            parsed.get(
+                "depth_score"
+            )
+        )
+
+        # ====================================================
+        # PHASE 4.2:
+        # Deterministic adaptive difficulty.
+        #
+        # 4.0 - 5.0 -> increase
+        # 2.8 - 3.9 -> maintain
+        # 1.0 - 2.7 -> decrease
+        #
+        # The backend owns this decision.
+        # Do not trust an LLM-generated difficulty label.
+        # ====================================================
+
+        average_score = (
+            relevance_score
+            + correctness_score
+            + clarity_score
+            + depth_score
+        ) / 4
+
+        if average_score >= 4.0:
+
+            difficulty_recommendation = "increase"
+
+        elif average_score >= 2.8:
+
+            difficulty_recommendation = "maintain"
+
+        else:
+
+            difficulty_recommendation = "decrease"
 
         return {
 
             "relevance_score":
-                safe_score(
-                    parsed.get(
-                        "relevance_score"
-                    )
-                ),
+                relevance_score,
 
             "correctness_score":
-                safe_score(
-                    parsed.get(
-                        "correctness_score"
-                    )
-                ),
+                correctness_score,
 
             "clarity_score":
-                safe_score(
-                    parsed.get(
-                        "clarity_score"
-                    )
-                ),
+                clarity_score,
 
             "depth_score":
-                safe_score(
-                    parsed.get(
-                        "depth_score"
-                    )
-                ),
+                depth_score,
 
             "strengths":
                 str(
@@ -753,7 +973,7 @@ Return JSON only.
                 ),
 
             "difficulty_recommendation":
-                recommendation,
+                difficulty_recommendation,
 
         }
 
@@ -768,8 +988,11 @@ Return JSON only.
         return {
 
             "relevance_score": 3,
+
             "correctness_score": 3,
+
             "clarity_score": 3,
+
             "depth_score": 3,
 
             "strengths":
@@ -778,12 +1001,12 @@ Return JSON only.
             "knowledge_gaps":
                 "No analysis was available.",
 
+            # 3+3+3+3 / 4 = 3.0
+            # Therefore fallback difficulty is maintain.
             "difficulty_recommendation":
                 "maintain",
 
         }
-
-
 # ============================================================
 # SUBMIT ANSWER
 # ============================================================
@@ -1078,6 +1301,10 @@ async def submit_answer(
     # --------------------------------------------------------
     # Add answer to LangGraph
     # --------------------------------------------------------
+    # NEW:
+    # A Groq rate limit must not break the interview.
+    # Persisted DB data remains available as a fallback.
+    # --------------------------------------------------------
 
     config = {
 
@@ -1090,35 +1317,47 @@ async def submit_answer(
 
     }
 
-    session.agent.invoke(
+    try:
 
-        {
+        session.agent.invoke(
 
-            "messages": [
+            {
 
-                {
+                "messages": [
 
-                    "role": "user",
+                    {
 
-                    "content": answer
+                        "role": "user",
 
-                }
+                        "content": answer
 
-            ]
+                    }
 
-        },
+                ]
 
-        config=config
+            },
 
-    )
+            config=config
+
+        )
+
+    except Exception as error:
+
+        if is_groq_rate_limit_error(error):
+
+            print(
+                "\nGroq rate limit reached while updating interview "
+                "memory. Continuing with persisted interview data."
+            )
+
+        else:
+
+            raise
 
     # ========================================================
     # IMPORTANT:
     #
     # We check expiration AFTER saving the answer.
-    #
-    # This is what allows a candidate to continue speaking
-    # after 00:00 and finish naturally.
     # ========================================================
 
     if is_interview_expired(session):
@@ -1167,9 +1406,8 @@ async def submit_answer(
     session.question_count += 1
 
     # ========================================================
-    # NEW PHASE 4.1:
-    # Use the private response analysis to guide the next
-    # question's difficulty and direction.
+    # NEW PHASE 4.1 + PHASE 4.2:
+    # Use persisted response analysis to guide difficulty.
     # ========================================================
 
     analysis_context = f"""
@@ -1197,7 +1435,6 @@ Difficulty recommendation:
 {analysis_data["difficulty_recommendation"]}
 """
 
-
     prompt = f"""
 The candidate just answered the previous interview question.
 
@@ -1216,42 +1453,88 @@ Rules:
 3. Build the question from their REAL response.
 4. Use the private response analysis to choose an
    appropriate difficulty.
-5. Increase difficulty when the analysis recommends "increase".
-6. Maintain difficulty when the analysis recommends "maintain".
-7. Simplify or reinforce fundamentals when the analysis
+5. The difficulty recommendation was calculated by the backend
+   from the four quality scores.
+6. Increase difficulty when the analysis recommends "increase".
+7. Maintain difficulty when the analysis recommends "maintain".
+8. Simplify or reinforce fundamentals when the analysis
    recommends "decrease".
-8. Explore a knowledge gap when doing so is useful.
-9. Do not expose scores or internal analysis to the candidate.
-10. Do not mention question numbers.
-11. Do not mention timers or interview duration.
-12. Keep the TOTAL response concise, preferably under 3 sentences.
+9. Explore a knowledge gap when doing so is useful.
+10. Do not expose scores or internal analysis to the candidate.
+11. Do not mention question numbers.
+12. Do not mention timers or interview duration.
+13. Keep the TOTAL response concise, preferably under 3 sentences.
 
 Be conversational and adaptive.
 """
 
-    response = session.agent.invoke(
+    try:
 
-        {
+        response = session.agent.invoke(
 
-            "messages": [
+            {
 
-                {
+                "messages": [
 
-                    "role": "user",
+                    {
 
-                    "content": prompt
+                        "role": "user",
 
-                }
+                        "content": prompt
 
-            ]
+                    }
 
-        },
+                ]
 
-        config=config
+            },
 
-    )
+            config=config
 
-    question = response["messages"][-1].content
+        )
+
+        question = extract_message_content(
+            response["messages"][-1].content
+        )
+
+    except Exception as error:
+
+        if not is_groq_rate_limit_error(error):
+
+            raise
+
+        # ====================================================
+        # NEW:
+        # Difficulty-aware fallback when Groq is rate-limited.
+        # ====================================================
+
+        print(
+            "\nGroq rate limit reached while generating the next question."
+        )
+
+        recommendation = (
+            analysis_data["difficulty_recommendation"]
+        )
+
+        if recommendation == "increase":
+
+            question = (
+                "Good answer. Let’s go one level deeper: "
+                "can you explain the trade-offs involved and give a practical example?"
+            )
+
+        elif recommendation == "decrease":
+
+            question = (
+                "Let’s revisit the basics. "
+                "Can you explain the core concept in simple terms and give a small example?"
+            )
+
+        else:
+
+            question = (
+                "Good. To build on that, can you explain how this concept "
+                "works in a practical example?"
+            )
 
     # ========================================================
     # Save next question
@@ -1421,22 +1704,75 @@ def end_interview(
 @app.post("/get-feedback")
 def get_feedback(
 
+    db: Session = Depends(get_db),
+
     current_user: User = Depends(get_current_user)
 
 ):
 
     session = get_user_session(current_user)
 
-    config = {
+    if session.interview_id is None:
 
-        "configurable": {
+        return {
 
-            "thread_id":
-                session.thread_id
+            "success": False,
+
+            "message":
+                "No interview session was found."
 
         }
 
-    }
+    interview = (
+
+        db.query(Interview)
+
+        .filter(
+
+            Interview.id ==
+                session.interview_id,
+
+            Interview.user_id ==
+                current_user.id
+
+        )
+
+        .first()
+
+    )
+
+    if not interview:
+
+        return {
+
+            "success": False,
+
+            "message":
+                "Interview not found."
+
+        }
+
+    # ========================================================
+    # NEW:
+    # Build final feedback context directly from persisted
+    # interview questions and candidate answers.
+    # ========================================================
+
+    transcript = build_interview_transcript(
+        db,
+        interview.id
+    )
+
+    if not transcript:
+
+        return {
+
+            "success": False,
+
+            "message":
+                "No interview responses were found."
+
+        }
 
     feedback_prompt = FEEDBACK_PROMPT.format(
 
@@ -1445,87 +1781,51 @@ def get_feedback(
 
     )
 
-    response = session.agent.invoke(
+    full_feedback_prompt = f"""
+{feedback_prompt}
 
-        {
+Below is the COMPLETE persisted interview transcript.
 
-            "messages": [
+Use ONLY this transcript to generate feedback.
 
-                {
-
-                    "role": "user",
-
-                    "content": (
-
-                        f"{feedback_prompt}\n"
-
-                        f"Review the entire interview on "
-
-                        f"{session.current_subject} "
-
-                        f"and provide specific, detailed "
-
-                        f"feedback based on their ACTUAL answers."
-
-                    )
-
-                }
-
-            ]
-
-        },
-
-        config=config
-
-    )
-
-    text = response["messages"][-1].content
-
-    print(
-        f"\n[Feedback Generated]\n{text}\n"
-    )
-
-    cleaned = text.strip()
-
-    # --------------------------------------------------------
-    # Remove <think> blocks
-    # --------------------------------------------------------
-
-    cleaned = re.sub(
-
-        r"<think>.*?</think>",
-
-        "",
-
-        cleaned,
-
-        flags=re.DOTALL
-
-    ).strip()
-
-    # --------------------------------------------------------
-    # Remove markdown code fences
-    # --------------------------------------------------------
-
-    if "```" in cleaned:
-
-        cleaned = (
-
-            cleaned
-
-            .split("```")[1]
-
-            .replace("json", "")
-
-            .strip()
-
-        )
-
-    # --------------------------------------------------------
-    # Parse JSON
-    # --------------------------------------------------------
+INTERVIEW TRANSCRIPT:
+{transcript}
+"""
 
     try:
+
+        response = model.invoke(
+            full_feedback_prompt
+        )
+
+        text = extract_message_content(
+            response.content
+        )
+
+        print(
+            f"\n[Feedback Generated]\n{text}\n"
+        )
+
+        cleaned = text.strip()
+
+        cleaned = re.sub(
+            r"<think>.*?</think>",
+            "",
+            cleaned,
+            flags=re.DOTALL
+        ).strip()
+
+        if "```" in cleaned:
+
+            parts = cleaned.split("```")
+
+            if len(parts) >= 2:
+
+                cleaned = (
+                    parts[1]
+                    .replace("json", "", 1)
+                    .strip()
+                )
 
         feedback = json.loads(cleaned)
 
@@ -1537,14 +1837,42 @@ def get_feedback(
 
         }
 
-    except json.JSONDecodeError:
+    except Exception as error:
+
+        if is_groq_rate_limit_error(error):
+
+            print(
+                "\nGroq rate limit reached while generating feedback."
+            )
+
+            fallback_feedback = calculate_fallback_feedback(
+                db=db,
+                interview_id=interview.id,
+                subject=session.current_subject
+            )
+
+            return {
+
+                "success": True,
+
+                "feedback": fallback_feedback,
+
+                "fallback": True
+
+            }
+
+        print(
+            "\nFeedback Generation Error"
+        )
+
+        traceback.print_exc()
 
         return {
 
             "success": False,
 
             "message":
-                "Invalid feedback generated."
+                "Unable to generate feedback."
 
         }
 
