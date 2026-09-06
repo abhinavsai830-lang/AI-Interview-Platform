@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <!-- ========================================================
+         AUTHENTICATION GUARD
+         ======================================================== -->
+
+    <script>
+
+        const existingAuthToken =
+            localStorage.getItem("authToken");
+
+        if (!existingAuthToken) {
+
+            window.location.replace(
+                "login.html"
+            );
+
+        }
+
+    </script>
+
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Interview Results | AI Interview
+    </title>
+
+
+    <!-- ========================================================
+         EXTERNAL LIBRARIES
+         ======================================================== -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+
+    <!-- ========================================================
+         PAGE STYLES
+         ======================================================== -->
+
+    <style>
+
+        :root {
+
+            --background:
+                #050505;
+
+            --panel:
+                rgba(14, 14, 18, 0.82);
+
+            --border:
+                rgba(255, 255, 255, 0.08);
+
+        }
+
+
+        * {
+
+            box-sizing:
+                border-box;
+
+        }
+
+
+        body {
+
+            margin:
+                0;
+
+            font-family:
+                "Inter",
+                sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at 15% 15%,
+                    rgba(
+                        99,
+                        102,
+                        241,
+                        0.14
+                    ),
+                    transparent 32%
+                ),
+                radial-gradient(
+                    circle at 85% 85%,
+                    rgba(
+                        168,
+                        85,
+                        247,
+                        0.12
+                    ),
+                    transparent 30%
+                ),
+                var(--background);
+
+            color:
+                white;
+
+        }
+
+
+        .font-space {
+
+            font-family:
+                "Space Grotesk",
+                sans-serif;
+
+        }
+
+
+        .glass {
+
+            background:
+                var(--panel);
+
+            border:
+                1px solid var(--border);
+
+            backdrop-filter:
+                blur(18px);
+
+            -webkit-backdrop-filter:
+                blur(18px);
+
+        }
+
+
+        .gradient-text {
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #818cf8,
+                    #a855f7,
+                    #ec4899
+                );
+
+            -webkit-background-clip:
+                text;
+
+            -webkit-text-fill-color:
+                transparent;
+
+            background-clip:
+                text;
+
+        }
+
+
+        .score-ring {
+
+            transform:
+                rotate(-90deg);
+
+        }
+
+
+        .score-progress {
+
+            transition:
+                stroke-dashoffset
+                1.2s
+                ease;
+
+        }
+
+
+        .fade-in {
+
+            animation:
+                fadeIn
+                0.45s
+                ease;
+
+        }
+
+
+        @keyframes fadeIn {
+
+            from {
+
+                opacity:
+                    0;
+
+                transform:
+                    translateY(12px);
+
+            }
+
+            to {
+
+                opacity:
+                    1;
+
+                transform:
+                    translateY(0);
+
+            }
+
+        }
+
+
+        .stat-card {
+
+            transition:
+                transform 0.2s ease,
+                border-color 0.2s ease;
+
+        }
+
+
+        .stat-card:hover {
+
+            transform:
+                translateY(-2px);
+
+            border-color:
+                rgba(
+                    129,
+                    140,
+                    248,
+                    0.22
+                );
+
+        }
+
+
+        .result-card {
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(
+                        24,
+                        24,
+                        30,
+                        0.90
+                    ),
+                    rgba(
+                        10,
+                        10,
+                        14,
+                        0.92
+                    )
+                );
+
+        }
+
+
+        .hidden {
+
+            display:
+                none !important;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body class="min-h-screen">
+
+
+    <!-- ========================================================
+         APPLICATION
+         ======================================================== -->
+
+    <div class="min-h-screen">
+
+
+        <!-- ====================================================
+             TOP NAVIGATION
+             ==================================================== -->
+
+        <header
+            class="sticky top-0 z-50 border-b border-zinc-800/70 bg-black/80 backdrop-blur-xl"
+        >
+
+            <div
+                class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+            >
+
+                <div
+                    class="h-20 flex items-center justify-between"
+                >
+
+                    <!-- BRAND -->
+
+                    <a
+                        href="dashboard.html"
+                        class="flex items-center gap-3"
+                    >
+
+                        <div
+                            class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20"
+                        >
+
+                            <i
+                                class="fas fa-robot"
+                            ></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <div
+                                class="font-space text-xl font-bold gradient-text"
+                            >
+                                AI Interview
+                            </div>
+
+                            <div
+                                class="text-[10px] text-zinc-500 uppercase tracking-[0.22em]"
+                            >
+                                Results
+                            </div>
+
+                        </div>
+
+                    </a>
+
+
+                    <!-- USER -->
+
+                    <div
+                        class="flex items-center gap-3"
+                    >
+
+                        <div
+                            class="hidden sm:block text-right"
+                        >
+
+                            <p
+                                id="currentUserName"
+                                class="text-sm font-semibold"
+                            >
+                                Candidate
+                            </p>
+
+                            <p
+                                id="currentUserEmail"
+                                class="text-xs text-zinc-500"
+                            >
+                                --
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-user text-sm"
+                            ></i>
+
+                        </div>
+
+
+                        <button
+                            id="dashboardBtn"
+                            type="button"
+                            title="Back to dashboard"
+                            class="w-10 h-10 rounded-xl border border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:text-white hover:border-indigo-500/30 transition"
+                        >
+
+                            <i
+                                class="fas fa-grid-2"
+                            ></i>
+
+                        </button>
+
+
+                        <button
+                            id="logoutBtn"
+                            type="button"
+                            title="Logout"
+                            class="w-10 h-10 rounded-xl border border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:text-red-400 hover:border-red-500/30 transition"
+                        >
+
+                            <i
+                                class="fas fa-right-from-bracket"
+                            ></i>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- ====================================================
+             MAIN CONTENT
+             ==================================================== -->
+
+        <main
+            class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14"
+        >
+
+            <!-- LOADING -->
+
+            <section
+                id="loadingState"
+                class="min-h-[70vh] flex items-center justify-center"
+            >
+
+                <div class="text-center">
+
+                    <div
+                        class="mx-auto w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-400/10 flex items-center justify-center"
+                    >
+
+                        <i
+                            class="fas fa-spinner fa-spin text-2xl text-indigo-300"
+                        ></i>
+
+                    </div>
+
+                    <p
+                        class="mt-5 text-zinc-400"
+                    >
+                        Loading your interview results...
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- RESULTS -->
+
+            <section
+                id="resultsState"
+                class="hidden fade-in"
+            >
+
+                <!-- =================================================
+                     RESULT HEADER
+                     ================================================= -->
+
+                <div
+                    class="text-center mb-10"
+                >
+
+                    <div
+                        class="mx-auto w-16 h-16 rounded-2xl bg-green-500/10 border border-green-400/10 flex items-center justify-center"
+                    >
+
+                        <i
+                            class="fas fa-circle-check text-2xl text-green-400"
+                        ></i>
+
+                    </div>
+
+
+                    <p
+                        class="text-xs uppercase tracking-[0.22em] text-green-400 mt-5"
+                    >
+                        Interview Complete
+                    </p>
+
+
+                    <h1
+                        class="font-space text-4xl sm:text-5xl font-bold mt-3"
+                    >
+                        Great work.
+                    </h1>
+
+
+                    <p
+                        class="text-zinc-500 mt-3 max-w-2xl mx-auto leading-7"
+                    >
+                        Your AI interviewer has analyzed your responses.
+                        Here's your performance summary.
+                    </p>
+
+
+                    <div
+                        class="mt-5 flex justify-center"
+                    >
+
+                        <span
+                            id="subjectBadge"
+                            class="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 border border-indigo-400/20 px-4 py-2 text-sm font-semibold text-indigo-300"
+                        >
+
+                            <i
+                                id="subjectIcon"
+                                class="fas fa-brain"
+                            ></i>
+
+                            <span
+                                id="subjectName"
+                            >
+                                Interview
+                            </span>
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     SCORE + PERFORMANCE
+                     ================================================= -->
+
+                <div
+                    class="grid grid-cols-1 lg:grid-cols-[0.75fr_1.25fr] gap-6"
+                >
+
+                    <!-- SCORE CARD -->
+
+                    <div
+                        class="result-card rounded-3xl border border-zinc-800 p-7 sm:p-9 flex flex-col items-center justify-center"
+                    >
+
+                        <p
+                            class="text-xs uppercase tracking-[0.18em] text-zinc-500"
+                        >
+                            Overall score
+                        </p>
+
+
+                        <div
+                            class="relative w-52 h-52 mt-6"
+                        >
+
+                            <svg
+                                class="w-52 h-52 score-ring"
+                                viewBox="0 0 120 120"
+                            >
+
+                                <circle
+                                    cx="60"
+                                    cy="60"
+                                    r="48"
+                                    stroke="#27272a"
+                                    stroke-width="7"
+                                    fill="none"
+                                ></circle>
+
+
+                                <circle
+                                    id="scoreCircle"
+                                    cx="60"
+                                    cy="60"
+                                    r="48"
+                                    stroke="url(#scoreGradient)"
+                                    stroke-width="7"
+                                    fill="none"
+                                    stroke-dasharray="301.6"
+                                    stroke-dashoffset="301.6"
+                                    stroke-linecap="round"
+                                    class="score-progress"
+                                ></circle>
+
+
+                                <defs>
+
+                                    <linearGradient
+                                        id="scoreGradient"
+                                        x1="0%"
+                                        y1="0%"
+                                        x2="100%"
+                                        y2="100%"
+                                    >
+
+                                        <stop
+                                            offset="0%"
+                                            stop-color="#818cf8"
+                                        ></stop>
+
+                                        <stop
+                                            offset="100%"
+                                            stop-color="#ec4899"
+                                        ></stop>
+
+                                    </linearGradient>
+
+                                </defs>
+
+                            </svg>
+
+
+                            <div
+                                class="absolute inset-0 flex flex-col items-center justify-center"
+                            >
+
+                                <span
+                                    id="scoreValue"
+                                    class="font-space text-6xl font-bold"
+                                >
+                                    --
+                                </span>
+
+                                <span
+                                    class="text-sm text-zinc-500 mt-1"
+                                >
+                                    out of 5
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            id="scoreLabel"
+                            class="mt-5 inline-flex items-center rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300"
+                        >
+                            Evaluating performance
+                        </div>
+
+                    </div>
+
+
+                    <!-- SUMMARY -->
+
+                    <div
+                        class="space-y-6"
+                    >
+
+                        <div
+                            class="result-card rounded-3xl border border-zinc-800 p-6 sm:p-8"
+                        >
+
+                            <div
+                                class="flex items-center gap-3 mb-5"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-400/10 flex items-center justify-center"
+                                >
+
+                                    <i
+                                        class="fas fa-chart-simple text-indigo-300"
+                                    ></i>
+
+                                </div>
+
+
+                                <div>
+
+                                    <h2
+                                        class="font-space text-xl font-bold"
+                                    >
+                                        Interview Summary
+                                    </h2>
+
+                                    <p
+                                        class="text-xs text-zinc-500 mt-1"
+                                    >
+                                        Session details
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div
+                                class="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                            >
+
+                                <div
+                                    class="stat-card rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4"
+                                >
+
+                                    <p
+                                        class="text-[10px] uppercase tracking-[0.16em] text-zinc-500"
+                                    >
+                                        Topic
+                                    </p>
+
+                                    <p
+                                        id="summarySubject"
+                                        class="font-semibold mt-2"
+                                    >
+                                        --
+                                    </p>
+
+                                </div>
+
+
+                                <div
+                                    class="stat-card rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4"
+                                >
+
+                                    <p
+                                        class="text-[10px] uppercase tracking-[0.16em] text-zinc-500"
+                                    >
+                                        Duration
+                                    </p>
+
+                                    <p
+                                        id="summaryDuration"
+                                        class="font-semibold mt-2"
+                                    >
+                                        --
+                                    </p>
+
+                                </div>
+
+
+                                <div
+                                    class="stat-card rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4"
+                                >
+
+                                    <p
+                                        class="text-[10px] uppercase tracking-[0.16em] text-zinc-500"
+                                    >
+                                        Status
+                                    </p>
+
+                                    <p
+                                        class="font-semibold text-green-400 mt-2"
+                                    >
+                                        Completed
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- FEEDBACK -->
+
+                        <div
+                            class="result-card rounded-3xl border border-zinc-800 p-6 sm:p-8"
+                        >
+
+                            <div
+                                class="flex items-center gap-3 mb-4"
+                            >
+
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-green-500/10 border border-green-400/10 flex items-center justify-center"
+                                >
+
+                                    <i
+                                        class="fas fa-thumbs-up text-green-400"
+                                    ></i>
+
+                                </div>
+
+
+                                <div>
+
+                                    <h2
+                                        class="font-space text-xl font-bold"
+                                    >
+                                        What went well
+                                    </h2>
+
+                                    <p
+                                        class="text-xs text-zinc-500 mt-1"
+                                    >
+                                        AI-generated performance feedback
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div
+                                id="feedbackText"
+                                class="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-5 text-sm text-zinc-300 leading-7"
+                            >
+                                --
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     AREAS TO IMPROVE
+                     ================================================= -->
+
+                <div
+                    class="result-card rounded-3xl border border-zinc-800 p-6 sm:p-8 mt-6"
+                >
+
+                    <div
+                        class="flex items-center gap-3 mb-4"
+                    >
+
+                        <div
+                            class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-400/10 flex items-center justify-center"
+                        >
+
+                            <i
+                                class="fas fa-lightbulb text-purple-300"
+                            ></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <h2
+                                class="font-space text-xl font-bold"
+                            >
+                                Areas to improve
+                            </h2>
+
+                            <p
+                                class="text-xs text-zinc-500 mt-1"
+                            >
+                                Practical suggestions for your next interview
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="improvementText"
+                        class="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-5 text-sm text-zinc-300 leading-7"
+                    >
+                        --
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     ACTIONS
+                     ================================================= -->
+
+                <div
+                    class="flex flex-col sm:flex-row justify-center gap-3 mt-8"
+                >
+
+                    <button
+                        id="newInterviewBtn"
+                        type="button"
+                        class="rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-7 py-3.5 font-bold hover:shadow-lg hover:shadow-indigo-500/20 transition"
+                    >
+
+                        <i
+                            class="fas fa-rotate-right mr-2"
+                        ></i>
+
+                        Start New Interview
+
+                    </button>
+
+
+                    <button
+                        id="resultsDashboardBtn"
+                        type="button"
+                        class="rounded-2xl border border-zinc-700 px-7 py-3.5 font-semibold text-zinc-300 hover:text-white hover:border-zinc-500 transition"
+                    >
+
+                        <i
+                            class="fas fa-chart-line mr-2"
+                        ></i>
+
+                        Back to Dashboard
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 NO RESULT STATE
+                 ================================================= -->
+
+            <section
+                id="emptyState"
+                class="hidden min-h-[70vh] flex items-center justify-center"
+            >
+
+                <div
+                    class="glass rounded-3xl p-8 sm:p-12 text-center max-w-xl w-full"
+                >
+
+                    <div
+                        class="mx-auto w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-400/10 flex items-center justify-center"
+                    >
+
+                        <i
+                            class="fas fa-file-circle-question text-yellow-400 text-2xl"
+                        ></i>
+
+                    </div>
+
+
+                    <h2
+                        class="font-space text-2xl font-bold mt-5"
+                    >
+                        No interview results found
+                    </h2>
+
+
+                    <p
+                        class="text-zinc-500 mt-3 leading-7"
+                    >
+                        Start an interview first, then return here to view your AI feedback.
+                    </p>
+
+
+                    <button
+                        id="emptyDashboardBtn"
+                        type="button"
+                        class="mt-7 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-bold"
+                    >
+
+                        <i
+                            class="fas fa-arrow-left mr-2"
+                        ></i>
+
+                        Go to Dashboard
+
+                    </button>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <!-- ========================================================
+         JAVASCRIPT
+         ======================================================== -->
+
+    <script src="results.js?v=results1"></script>
+
+</body>
+
+</html>

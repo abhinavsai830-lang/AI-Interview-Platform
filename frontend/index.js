@@ -2886,6 +2886,8 @@ async function endInterview() {
 }
 
 
+
+
 // ============================================================
 // GET FEEDBACK
 // ============================================================
@@ -2975,17 +2977,51 @@ async function getFeedback() {
         );
 
 
-        displayFeedback(
-            data.feedback
+        // ====================================================
+        // NEW:
+        // Store the generated result for the dedicated
+        // Results page.
+        // ====================================================
+
+        sessionStorage.setItem(
+
+            "latestInterviewResult",
+
+            JSON.stringify({
+
+                subject:
+                    data.feedback.subject ||
+                    currentSubject ||
+                    "Interview",
+
+                candidate_score:
+                    Number(
+                        data.feedback.candidate_score
+                    ) || 1,
+
+                feedback:
+                    data.feedback.feedback ||
+                    "",
+
+                areas_of_improvement:
+                    data.feedback.areas_of_improvement ||
+                    "",
+
+                duration_minutes:
+                    selectedDuration
+
+            })
+
         );
 
 
-        if (getFeedbackBtn) {
+        // ----------------------------------------------------
+        // Send candidate to dedicated Results page
+        // ----------------------------------------------------
 
-            getFeedbackBtn.textContent =
-                "Feedback Generated";
+        window.location.href =
+            "results.html";
 
-        }
 
     } catch (error) {
 
