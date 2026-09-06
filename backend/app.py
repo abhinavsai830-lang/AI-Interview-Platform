@@ -33,6 +33,7 @@ from .models import (
     Interview,
     InterviewQuestion,
     InterviewAnswer,
+    InterviewAnswerAnalysis,
 )
 
 from .routes.auth import router as auth_router
@@ -562,6 +563,228 @@ def speech_to_text(
 
 
 # ============================================================
+# RESPONSE QUALITY ANALYSIS
+# ============================================================
+# NEW PHASE 4.1:
+# Analyze each candidate answer before generating the next
+# interviewer question.
+#
+# This analysis is internal and stored in the database.
+# The candidate does not see these scores yet.
+# ============================================================
+
+def analyze_candidate_answer(
+    subject: str,
+    question: str,
+    answer: str,
+) -> dict:
+
+    analysis_prompt = f"""
+You are an expert interview evaluator.
+
+Analyze the candidate's answer to the interview question below.
+
+INTERVIEW SUBJECT:
+{subject}
+
+QUESTION:
+{question}
+
+CANDIDATE ANSWER:
+{answer}
+
+Evaluate ONLY what the candidate actually said.
+
+Do not assume knowledge that was not demonstrated.
+
+Return ONLY valid JSON in exactly this structure:
+
+{{
+    "relevance_score": <integer from 1 to 5>,
+    "correctness_score": <integer from 1 to 5>,
+    "clarity_score": <integer from 1 to 5>,
+    "depth_score": <integer from 1 to 5>,
+    "strengths": "<brief description of demonstrated strengths>",
+    "knowledge_gaps": "<brief description of missing or weak areas>",
+    "difficulty_recommendation": "increase|maintain|decrease"
+}}
+
+SCORING:
+
+relevance_score:
+1 = does not answer the question
+3 = partially answers the question
+5 = directly answers the question
+
+correctness_score:
+1 = mostly incorrect
+3 = partially correct
+5 = technically correct based on the answer
+
+clarity_score:
+1 = very unclear
+3 = understandable but imperfect
+5 = clear and well structured
+
+depth_score:
+1 = superficial or extremely limited
+3 = reasonable basic explanation
+5 = detailed explanation with useful reasoning or examples
+
+DIFFICULTY:
+
+increase:
+Use when the candidate demonstrates strong understanding.
+
+maintain:
+Use when the candidate demonstrates reasonable understanding.
+
+decrease:
+Use when the candidate appears uncertain, gives an incomplete answer,
+or demonstrates a knowledge gap.
+
+Be concise.
+
+Return JSON only.
+"""
+
+    try:
+
+        response = model.invoke(
+            analysis_prompt
+        )
+
+        content = response.content
+
+        if isinstance(content, list):
+
+            content = "".join(
+                part.get("text", "")
+                for part in content
+                if isinstance(part, dict)
+            )
+
+        content = (
+            content
+            .strip()
+            .replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
+
+        parsed = json.loads(content)
+
+        def safe_score(value):
+
+            try:
+
+                return min(
+                    5,
+                    max(
+                        1,
+                        int(value)
+                    )
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                return 3
+
+        recommendation = parsed.get(
+            "difficulty_recommendation",
+            "maintain"
+        )
+
+        if recommendation not in {
+            "increase",
+            "maintain",
+            "decrease",
+        }:
+
+            recommendation = "maintain"
+
+        return {
+
+            "relevance_score":
+                safe_score(
+                    parsed.get(
+                        "relevance_score"
+                    )
+                ),
+
+            "correctness_score":
+                safe_score(
+                    parsed.get(
+                        "correctness_score"
+                    )
+                ),
+
+            "clarity_score":
+                safe_score(
+                    parsed.get(
+                        "clarity_score"
+                    )
+                ),
+
+            "depth_score":
+                safe_score(
+                    parsed.get(
+                        "depth_score"
+                    )
+                ),
+
+            "strengths":
+                str(
+                    parsed.get(
+                        "strengths",
+                        ""
+                    )
+                ),
+
+            "knowledge_gaps":
+                str(
+                    parsed.get(
+                        "knowledge_gaps",
+                        ""
+                    )
+                ),
+
+            "difficulty_recommendation":
+                recommendation,
+
+        }
+
+    except Exception:
+
+        print(
+            "\nResponse Analysis Error"
+        )
+
+        traceback.print_exc()
+
+        return {
+
+            "relevance_score": 3,
+            "correctness_score": 3,
+            "clarity_score": 3,
+            "depth_score": 3,
+
+            "strengths":
+                "Unable to analyze this response.",
+
+            "knowledge_gaps":
+                "No analysis was available.",
+
+            "difficulty_recommendation":
+                "maintain",
+
+        }
+
+
+# ============================================================
 # SUBMIT ANSWER
 # ============================================================
 
@@ -785,6 +1008,73 @@ async def submit_answer(
 
     db.commit()
 
+
+    # ========================================================
+    # NEW PHASE 4.1:
+    # Analyze and persist the quality of this answer.
+    # ========================================================
+
+    analysis_data = analyze_candidate_answer(
+
+        subject=session.current_subject,
+
+        question=current_question.question_text,
+
+        answer=answer,
+
+    )
+
+    answer_analysis = InterviewAnswerAnalysis(
+
+        answer_id=answer_record.id,
+
+        relevance_score=
+            analysis_data[
+                "relevance_score"
+            ],
+
+        correctness_score=
+            analysis_data[
+                "correctness_score"
+            ],
+
+        clarity_score=
+            analysis_data[
+                "clarity_score"
+            ],
+
+        depth_score=
+            analysis_data[
+                "depth_score"
+            ],
+
+        strengths=
+            analysis_data[
+                "strengths"
+            ],
+
+        knowledge_gaps=
+            analysis_data[
+                "knowledge_gaps"
+            ],
+
+        difficulty_recommendation=
+            analysis_data[
+                "difficulty_recommendation"
+            ],
+
+    )
+
+    db.add(
+        answer_analysis
+    )
+
+    db.commit()
+
+
+
+
+
     # --------------------------------------------------------
     # Add answer to LangGraph
     # --------------------------------------------------------
@@ -876,12 +1166,46 @@ async def submit_answer(
 
     session.question_count += 1
 
-    prompt = """
+    # ========================================================
+    # NEW PHASE 4.1:
+    # Use the private response analysis to guide the next
+    # question's difficulty and direction.
+    # ========================================================
+
+    analysis_context = f"""
+PRIVATE RESPONSE ANALYSIS:
+
+Relevance:
+{analysis_data["relevance_score"]}/5
+
+Technical correctness:
+{analysis_data["correctness_score"]}/5
+
+Clarity:
+{analysis_data["clarity_score"]}/5
+
+Depth:
+{analysis_data["depth_score"]}/5
+
+Strengths:
+{analysis_data["strengths"]}
+
+Knowledge gaps:
+{analysis_data["knowledge_gaps"]}
+
+Difficulty recommendation:
+{analysis_data["difficulty_recommendation"]}
+"""
+
+
+    prompt = f"""
 The candidate just answered the previous interview question.
 
 Look at their ACTUAL answer above.
 
 Do NOT assume or make up what they said.
+
+{analysis_context}
 
 Now continue the interview naturally.
 
@@ -890,13 +1214,17 @@ Rules:
 1. Briefly acknowledge what they ACTUALLY said.
 2. Ask one concise follow-up question.
 3. Build the question from their REAL response.
-4. Increase difficulty naturally if they demonstrate strong knowledge.
-5. Simplify the next question if they are struggling.
-6. If they said "I don't know", acknowledge that briefly and
-   ask a simpler question.
-7. Do not mention question numbers.
-8. Do not mention timers or interview duration.
-9. Keep the TOTAL response concise, preferably under 3 sentences.
+4. Use the private response analysis to choose an
+   appropriate difficulty.
+5. Increase difficulty when the analysis recommends "increase".
+6. Maintain difficulty when the analysis recommends "maintain".
+7. Simplify or reinforce fundamentals when the analysis
+   recommends "decrease".
+8. Explore a knowledge gap when doing so is useful.
+9. Do not expose scores or internal analysis to the candidate.
+10. Do not mention question numbers.
+11. Do not mention timers or interview duration.
+12. Keep the TOTAL response concise, preferably under 3 sentences.
 
 Be conversational and adaptive.
 """
