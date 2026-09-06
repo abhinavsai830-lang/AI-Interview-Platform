@@ -1,14 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account | AI Interview</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,208 +18,105 @@
     >
 
     <style>
-
         body {
             font-family: "Inter", sans-serif;
-
             background:
-                radial-gradient(
-                    circle at 15% 20%,
-                    rgba(99, 102, 241, 0.18),
-                    transparent 30%
-                ),
-                radial-gradient(
-                    circle at 85% 80%,
-                    rgba(168, 85, 247, 0.14),
-                    transparent 30%
-                ),
+                radial-gradient(circle at 15% 20%, rgba(99,102,241,.18), transparent 30%),
+                radial-gradient(circle at 85% 80%, rgba(168,85,247,.14), transparent 30%),
                 #050505;
         }
-
-        .font-space {
-            font-family: "Space Grotesk", sans-serif;
-        }
-
-        .glass-card {
-            background: rgba(14, 14, 18, 0.78);
+        .font-space { font-family: "Space Grotesk", sans-serif; }
+        .glass {
+            background: rgba(14,14,18,.78);
             backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow:
-                0 25px 80px rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 25px 80px rgba(0,0,0,.45);
         }
-
-        .gradient-text {
-            background:
-                linear-gradient(
-                    135deg,
-                    #818cf8,
-                    #a855f7,
-                    #ec4899
-                );
-
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .gradient {
+            background: linear-gradient(135deg,#818cf8,#a855f7,#ec4899);
+            -webkit-background-clip:text;
+            -webkit-text-fill-color:transparent;
         }
-
-        .input-field {
-            transition:
-                border-color 0.2s ease,
-                box-shadow 0.2s ease;
+        .input {
+            transition: border-color .2s, box-shadow .2s;
         }
-
-        .input-field:focus {
-            border-color: rgba(129, 140, 248, 0.8);
-            box-shadow:
-                0 0 0 4px rgba(99, 102, 241, 0.1);
-            outline: none;
+        .input:focus {
+            outline:none;
+            border-color:rgba(129,140,248,.8);
+            box-shadow:0 0 0 4px rgba(99,102,241,.1);
         }
-
-        .primary-button {
-            background:
-                linear-gradient(
-                    135deg,
-                    #6366f1,
-                    #8b5cf6
-                );
-
-            transition:
-                transform 0.2s ease,
-                box-shadow 0.2s ease;
+        .primary {
+            background:linear-gradient(135deg,#6366f1,#8b5cf6);
+            transition:transform .2s, box-shadow .2s;
         }
-
-        .primary-button:hover {
-            transform: translateY(-1px);
-            box-shadow:
-                0 12px 30px rgba(99, 102, 241, 0.3);
+        .primary:hover {
+            transform:translateY(-1px);
+            box-shadow:0 12px 30px rgba(99,102,241,.3);
         }
-
-        .primary-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        .primary:disabled {
+            opacity:.6;
+            cursor:not-allowed;
+            transform:none;
         }
-
-        .benefit {
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            background: rgba(255, 255, 255, 0.025);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
     </style>
 </head>
 
-
 <body class="min-h-screen text-white">
 
-    <main
-        class="min-h-screen flex items-center justify-center px-5 py-10"
-    >
+    <main class="min-h-screen flex items-center justify-center px-5 py-10">
 
-        <div
-            class="w-full max-w-6xl grid lg:grid-cols-2 gap-8 items-center"
-        >
-
-            <!-- =====================================================
-                 BRAND SIDE
-                 ===================================================== -->
+        <div class="w-full max-w-5xl grid lg:grid-cols-2 gap-8 items-center">
 
             <section class="hidden lg:block px-8">
 
                 <div class="flex items-center gap-3 mb-12">
 
-                    <div
-                        class="w-12 h-12 rounded-2xl flex items-center justify-center"
-                        style="
-                            background:
-                            linear-gradient(
-                                135deg,
-                                #6366f1,
-                                #8b5cf6
-                            );
-                        "
-                    >
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                         <i class="fas fa-microphone-lines text-xl"></i>
                     </div>
 
                     <div>
-
-                        <div
-                            class="font-space text-xl font-bold"
-                        >
+                        <div class="font-space text-xl font-bold">
                             AI Interview
                         </div>
-
-                        <div
-                            class="text-xs text-zinc-500"
-                        >
+                        <div class="text-xs text-zinc-500">
                             Practice smarter
                         </div>
-
                     </div>
 
                 </div>
 
+                <p class="text-sm uppercase tracking-[.25em] text-indigo-400 font-semibold mb-4">
+                    AI-powered interview preparation
+                </p>
 
-                <h1
-                    class="font-space text-5xl xl:text-6xl font-bold leading-tight"
-                >
-                    Build confidence
-                    <span class="gradient-text">
-                        before interview day.
+                <h1 class="font-space text-5xl font-bold leading-tight">
+                    Practice like
+                    <span class="gradient">
+                        you're in the real interview.
                     </span>
                 </h1>
 
-
-                <p
-                    class="text-zinc-400 text-lg leading-8 max-w-lg mt-6"
-                >
-                    Create your account and start practicing
-                    with AI-generated questions, voice interaction
-                    and personalized feedback.
+                <p class="text-zinc-400 text-lg leading-8 mt-6 max-w-lg">
+                    Build confidence through realistic voice interviews,
+                    timed sessions, and personalized AI feedback.
                 </p>
 
+                <div class="mt-10 space-y-4 text-zinc-300">
 
-                <div class="grid grid-cols-2 gap-4 mt-10">
-
-                    <div class="benefit rounded-2xl p-5">
-
-                        <i
-                            class="fas fa-clock text-indigo-400 text-xl mb-4"
-                        ></i>
-
-                        <div class="font-semibold">
-                            Timed sessions
-                        </div>
-
-                        <div
-                            class="text-xs text-zinc-500 mt-1"
-                        >
-                            Practice under pressure.
-                        </div>
-
+                    <div class="flex gap-3 items-center">
+                        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                        Voice-based AI interviews
                     </div>
 
+                    <div class="flex gap-3 items-center">
+                        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                        Real-time interview timer
+                    </div>
 
-                    <div class="benefit rounded-2xl p-5">
-
-                        <i
-                            class="fas fa-chart-line text-purple-400 text-xl mb-4"
-                        ></i>
-
-                        <div class="font-semibold">
-                            AI feedback
-                        </div>
-
-                        <div
-                            class="text-xs text-zinc-500 mt-1"
-                        >
-                            Understand where to improve.
-                        </div>
-
+                    <div class="flex gap-3 items-center">
+                        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                        AI-powered performance feedback
                     </div>
 
                 </div>
@@ -233,71 +124,42 @@
             </section>
 
 
-            <!-- =====================================================
-                 REGISTER CARD
-                 ===================================================== -->
-
             <section>
 
-                <div
-                    class="glass-card rounded-3xl p-7 sm:p-9 max-w-md mx-auto"
-                >
+                <div class="glass rounded-3xl p-7 sm:p-9 max-w-md mx-auto">
 
-                    <div
-                        class="flex items-center justify-center gap-3 lg:hidden mb-8"
-                    >
+                    <div class="flex items-center justify-center gap-3 lg:hidden mb-8">
 
-                        <div
-                            class="w-11 h-11 rounded-xl flex items-center justify-center"
-                            style="
-                                background:
-                                linear-gradient(
-                                    135deg,
-                                    #6366f1,
-                                    #8b5cf6
-                                );
-                            "
-                        >
+                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                             <i class="fas fa-microphone-lines"></i>
                         </div>
 
-                        <span
-                            class="font-space text-xl font-bold"
-                        >
+                        <span class="font-space text-xl font-bold">
                             AI Interview
                         </span>
 
                     </div>
 
-
                     <div class="mb-8">
 
-                        <p
-                            class="text-sm text-indigo-400 font-semibold mb-2"
-                        >
+                        <p class="text-sm text-indigo-400 font-semibold mb-2">
                             Get started
                         </p>
 
-                        <h2
-                            class="font-space text-3xl font-bold"
-                        >
+                        <h2 class="font-space text-3xl font-bold">
                             Create your account
                         </h2>
 
-                        <p
-                            class="text-zinc-500 text-sm mt-2"
-                        >
+                        <p class="text-zinc-500 text-sm mt-2">
                             Your AI interview journey starts here.
                         </p>
 
                     </div>
 
-
                     <div
                         id="authMessage"
                         class="hidden rounded-xl px-4 py-3 text-sm mb-5"
                     ></div>
-
 
                     <label
                         for="email"
@@ -308,20 +170,17 @@
 
                     <div class="relative mb-5">
 
-                        <i
-                            class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
-                        ></i>
+                        <i class="fas fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"></i>
 
                         <input
                             id="email"
                             type="email"
                             autocomplete="email"
                             placeholder="you@example.com"
-                            class="input-field w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3.5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-600"
+                            class="input w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3.5 pl-11 pr-4 text-sm"
                         >
 
                     </div>
-
 
                     <label
                         for="password"
@@ -330,18 +189,16 @@
                         Password
                     </label>
 
-                    <div class="relative mb-2">
+                    <div class="relative mb-6">
 
-                        <i
-                            class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
-                        ></i>
+                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"></i>
 
                         <input
                             id="password"
                             type="password"
-                            autocomplete="new-password"
-                            placeholder="Create a password"
-                            class="input-field w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3.5 pl-11 pr-12 text-sm text-white placeholder:text-zinc-600"
+                            autocomplete="current-password"
+                            placeholder="Enter your password"
+                            class="input w-full bg-zinc-900/80 border border-zinc-800 rounded-xl py-3.5 pl-11 pr-12 text-sm"
                         >
 
                         <button
@@ -349,56 +206,36 @@
                             type="button"
                             class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
                         >
-                            <i
-                                id="passwordIcon"
-                                class="fas fa-eye"
-                            ></i>
+                            <i id="passwordIcon" class="fas fa-eye"></i>
                         </button>
 
                     </div>
 
-
-                    <p
-                        class="text-xs text-zinc-600 mb-6"
-                    >
+                    <p class="text-xs text-zinc-600 mb-5">
                         Use a password with at least 8 characters.
                     </p>
-
 
                     <button
                         id="registerBtn"
                         type="button"
-                        class="primary-button w-full rounded-xl py-3.5 font-semibold text-sm"
+                        class="primary w-full rounded-xl py-3.5 font-semibold text-sm"
                     >
-
-                        <span id="registerBtnText">
-                            Create Account
-                        </span>
-
-                        <i
-                            id="registerSpinner"
-                            class="fas fa-spinner fa-spin ml-2 hidden"
-                        ></i>
-
+                        <span id="registerBtnText">Create Account</span>
+                        <i id="registerSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
                     </button>
 
-
-                    <div class="mt-7 text-center">
-
-                        <span
-                            class="text-sm text-zinc-500"
-                        >
-                            Already have an account?
-                        </span>
-
-                        <a
-                            href="login.html"
-                            class="text-sm font-semibold text-indigo-400 hover:text-indigo-300 ml-1"
-                        >
-                            Sign in
-                        </a>
-
+                    <div class="flex items-center gap-4 my-7">
+                        <div class="h-px bg-zinc-800 flex-1"></div>
+                        <span class="text-xs text-zinc-600">NEW HERE?</span>
+                        <div class="h-px bg-zinc-800 flex-1"></div>
                     </div>
+
+                    <a
+                        href="login.html"
+                        class="block text-center w-full border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/60 rounded-xl py-3.5 text-sm font-semibold text-zinc-300 transition"
+                    >
+                        Already have an account? Sign in
+                    </a>
 
                 </div>
 
@@ -408,19 +245,11 @@
 
     </main>
 
-
-    <script src="auth.js"></script>
+    <script src="auth.js?v=dashboard3"></script>
 
     <script>
-
-        // =========================================================
-        // NEW: Register page configuration
-        // =========================================================
-
         initRegisterPage();
-
     </script>
 
 </body>
-
 </html>
