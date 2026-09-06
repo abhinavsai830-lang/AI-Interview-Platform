@@ -63,10 +63,28 @@ const startInterviewBtn =
     document.getElementById("startInterviewBtn");
 
 const topicButtons =
-    document.querySelectorAll(".topic-card");
+    document.querySelectorAll(
+        ".topic-card"
+    );
 
 const durationButtons =
-    document.querySelectorAll(".duration-btn");
+    document.querySelectorAll(
+        ".duration-btn"
+    );
+
+
+// ============================================================
+// API
+// ============================================================
+
+const BASE_URL =
+    "http://127.0.0.1:8000";
+
+const dashboardStatsApiUrl =
+    `${BASE_URL}/auth/dashboard/stats`;
+
+const dashboardFeedbackApiUrl =
+    `${BASE_URL}/auth/dashboard/save-feedback`;
 
 
 // ============================================================
@@ -227,7 +245,6 @@ function selectTopic(topic) {
                 button.dataset.topic ===
                     selectedTopic
             );
-
         }
     );
 
@@ -325,11 +342,153 @@ durationButtons.forEach(
 
 
 // ============================================================
+// FORMAT PRACTICE TIME
+// ============================================================
+
+function formatPracticeTime(
+    totalSeconds
+) {
+
+    const safeSeconds =
+        Math.max(
+            0,
+            Number(totalSeconds) || 0
+        );
+
+    const totalMinutes =
+        Math.floor(
+            safeSeconds / 60
+        );
+
+    const hours =
+        Math.floor(
+            totalMinutes / 60
+        );
+
+    const minutes =
+        totalMinutes % 60;
+
+    if (hours > 0) {
+
+        return (
+            `${hours}h ${minutes}m`
+        );
+    }
+
+    return (
+        `${minutes}m`
+    );
+}
+
+
+// ============================================================
+// LOAD DASHBOARD STATS
+// ============================================================
+
+async function loadDashboardStats() {
+
+    if (!requireAuthentication()) {
+
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                dashboardStatsApiUrl,
+                {
+                    method: "GET",
+
+                    headers: {
+                        Authorization:
+                            `Bearer ${authToken}`
+                    }
+                }
+            );
+
+        if (!response.ok) {
+
+            if (
+                response.status === 401
+            ) {
+
+                logout();
+
+                return;
+            }
+
+            throw new Error(
+                `Dashboard stats failed: HTTP ${response.status}`
+            );
+        }
+
+        const data =
+            await response.json();
+
+        console.log(
+            "Dashboard stats:",
+            data
+        );
+
+        if (interviewCount) {
+
+            interviewCount.textContent =
+                data.interview_count ?? 0;
+        }
+
+        if (latestScore) {
+
+            latestScore.textContent =
+                data.latest_score !== null &&
+                data.latest_score !== undefined
+                    ? data.latest_score
+                    : "--";
+        }
+
+        if (practiceTime) {
+
+            practiceTime.textContent =
+                formatPracticeTime(
+                    data.practice_time_seconds
+                );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Dashboard stats error:",
+            error
+        );
+
+        // Keep the dashboard usable even if
+        // the statistics request fails.
+        if (interviewCount) {
+
+            interviewCount.textContent =
+                "--";
+        }
+
+        if (latestScore) {
+
+            latestScore.textContent =
+                "--";
+        }
+
+        if (practiceTime) {
+
+            practiceTime.textContent =
+                "--";
+        }
+    }
+}
+
+
+// ============================================================
 // START INTERVIEW
 // ============================================================
 //
 // The dashboard passes the configuration directly in the URL.
-// This makes the handoff deterministic and easy to debug.
 //
 // Example:
 //
@@ -344,7 +503,6 @@ function openInterviewRoom() {
     }
 
     hideDashboardMessage();
-
 
     const params =
         new URLSearchParams();
@@ -364,10 +522,8 @@ function openInterviewRoom() {
         "true"
     );
 
-
     const interviewUrl =
         `index.html?${params.toString()}`;
-
 
     console.log(
         "Launching interview:",
@@ -382,7 +538,6 @@ function openInterviewRoom() {
                 interviewUrl
         }
     );
-
 
     window.location.href =
         interviewUrl;
@@ -451,7 +606,7 @@ if (logoutBtn) {
 // INITIALIZE DASHBOARD
 // ============================================================
 
-function initializeDashboard() {
+async function initializeDashboard() {
 
     if (!requireAuthentication()) {
 
@@ -467,7 +622,26 @@ function initializeDashboard() {
     selectDuration(
         selectedDuration
     );
+
+    await loadDashboardStats();
 }
 
 
 initializeDashboard();
+
+
+// ============================================================
+// REFRESH STATS WHEN RETURNING TO DASHBOARD
+// ============================================================
+//
+// This is especially useful when the user completes an interview
+// and then navigates back to the dashboard.
+// ============================================================
+
+window.addEventListener(
+    "pageshow",
+    () => {
+
+        loadDashboardStats();
+    }
+);

@@ -2134,7 +2134,76 @@ async function endInterview() {
             false;
     }
 }
+// ============================================================
+// SAVE FEEDBACK TO DASHBOARD
+// ============================================================
+// NEW:
+// Persist the generated score so the dashboard can display it.
+// ============================================================
 
+async function saveFeedbackToDashboard(
+    feedback
+) {
+
+    try {
+
+        const response =
+            await fetch(
+                `${BASE_URL}/auth/dashboard/save-feedback`,
+                {
+                    method: "POST",
+
+                    headers:
+                        authHeaders({
+                            "Content-Type":
+                                "application/json"
+                        }),
+
+                    body:
+                        JSON.stringify({
+
+                            candidate_score:
+                                feedback.candidate_score,
+
+                            feedback:
+                                feedback.feedback || "",
+
+                            areas_of_improvement:
+                                feedback.areas_of_improvement || ""
+                        })
+                }
+            );
+
+        if (!response.ok) {
+
+            const errorText =
+                await response.text();
+
+            console.error(
+                "Failed to save dashboard feedback:",
+                response.status,
+                errorText
+            );
+
+            return;
+        }
+
+        const savedData =
+            await response.json();
+
+        console.log(
+            "Dashboard feedback saved:",
+            savedData
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Dashboard feedback save error:",
+            error
+        );
+    }
+}
 
 // ============================================================
 // GET FEEDBACK
@@ -2180,10 +2249,13 @@ async function getFeedback() {
 
         if (data.success) {
 
-            displayFeedback(
+            await saveFeedbackToDashboard(
                 data.feedback
             );
 
+            displayFeedback(
+                data.feedback
+            );
 
         } else {
 

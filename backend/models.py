@@ -2,7 +2,15 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -11,9 +19,7 @@ from .database import Base
 # ============================================================
 # Helper
 # ============================================================
-# CHANGED:
-# Centralized UTC timestamp generation so all models use the
-# same datetime behavior.
+
 def utc_now():
     return datetime.now(timezone.utc)
 
@@ -21,6 +27,7 @@ def utc_now():
 # ============================================================
 # User Model
 # ============================================================
+
 class User(Base):
     __tablename__ = "users"
 
@@ -42,20 +49,12 @@ class User(Base):
         nullable=False,
     )
 
-    # ========================================================
-    # FIX:
-    # created_at now has an explicit Python-side default.
-    # This ensures a value is generated when a new User is
-    # created without manually supplying created_at.
-    # ========================================================
     created_at = Column(
         DateTime(timezone=True),
         default=utc_now,
         nullable=False,
     )
 
-    # Relationship:
-    # One user can have multiple interviews.
     interviews = relationship(
         "Interview",
         back_populates="user",
@@ -66,6 +65,7 @@ class User(Base):
 # ============================================================
 # Interview Model
 # ============================================================
+
 class Interview(Base):
     __tablename__ = "interviews"
 
@@ -91,8 +91,6 @@ class Interview(Base):
         nullable=False,
     )
 
-    # Interview lifecycle:
-    # active -> completed
     status = Column(
         String,
         default="active",
@@ -114,13 +112,11 @@ class Interview(Base):
         nullable=True,
     )
 
-    # Relationship with User
     user = relationship(
         "User",
         back_populates="interviews",
     )
 
-    # Relationship with InterviewQuestion
     questions = relationship(
         "InterviewQuestion",
         back_populates="interview",
@@ -128,10 +124,23 @@ class Interview(Base):
         order_by="InterviewQuestion.question_number",
     )
 
+    # ========================================================
+    # NEW:
+    # One interview has one feedback record.
+    # ========================================================
+
+    feedback_record = relationship(
+        "InterviewFeedback",
+        back_populates="interview",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
 
 # ============================================================
 # Interview Question Model
 # ============================================================
+
 class InterviewQuestion(Base):
     __tablename__ = "interview_questions"
 
@@ -157,23 +166,17 @@ class InterviewQuestion(Base):
         nullable=False,
     )
 
-    # ========================================================
-    # CHANGED:
-    # Use the same UTC helper instead of datetime.utcnow.
-    # ========================================================
     asked_at = Column(
         DateTime(timezone=True),
         default=utc_now,
         nullable=False,
     )
 
-    # Relationship with Interview
     interview = relationship(
         "Interview",
         back_populates="questions",
     )
 
-    # One question has one answer.
     answer = relationship(
         "InterviewAnswer",
         back_populates="question",
@@ -185,6 +188,7 @@ class InterviewQuestion(Base):
 # ============================================================
 # Interview Answer Model
 # ============================================================
+
 class InterviewAnswer(Base):
     __tablename__ = "interview_answers"
 
@@ -212,18 +216,69 @@ class InterviewAnswer(Base):
         nullable=False,
     )
 
-    # ========================================================
-    # CHANGED:
-    # Use the same UTC helper for answer timestamps.
-    # ========================================================
     answered_at = Column(
         DateTime(timezone=True),
         default=utc_now,
         nullable=False,
     )
 
-    # Relationship with InterviewQuestion
     question = relationship(
         "InterviewQuestion",
         back_populates="answer",
+    )
+
+
+# ============================================================
+# Interview Feedback Model
+# ============================================================
+# NEW:
+# Stores the AI-generated score and feedback permanently.
+#
+# This is deliberately a separate table so we do NOT need to
+# alter the existing interviews table in the current MVP DB.
+# ============================================================
+
+class InterviewFeedback(Base):
+    __tablename__ = "interview_feedback"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    interview_id = Column(
+        Integer,
+        ForeignKey("interviews.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    candidate_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    feedback = Column(
+        Text,
+        nullable=False,
+        default="",
+    )
+
+    areas_of_improvement = Column(
+        Text,
+        nullable=False,
+        default="",
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    interview = relationship(
+        "Interview",
+        back_populates="feedback_record",
     )
