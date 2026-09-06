@@ -124,11 +124,6 @@ class Interview(Base):
         order_by="InterviewQuestion.question_number",
     )
 
-    # ========================================================
-    # NEW:
-    # One interview has one feedback record.
-    # ========================================================
-
     feedback_record = relationship(
         "InterviewFeedback",
         back_populates="interview",
@@ -227,15 +222,97 @@ class InterviewAnswer(Base):
         back_populates="answer",
     )
 
+    # ========================================================
+    # NEW:
+    # One answer has one AI quality analysis.
+    # ========================================================
+
+    analysis = relationship(
+        "InterviewAnswerAnalysis",
+        back_populates="answer",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+# ============================================================
+# NEW: Interview Answer Analysis Model
+# ============================================================
+# Stores the private AI evaluation of each candidate answer.
+#
+# We keep this separate from InterviewAnswer so the existing
+# interview_answers table does not need to be altered.
+# ============================================================
+
+class InterviewAnswerAnalysis(Base):
+    __tablename__ = "interview_answer_analysis"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    answer_id = Column(
+        Integer,
+        ForeignKey("interview_answers.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    relevance_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    correctness_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    clarity_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    depth_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    strengths = Column(
+        Text,
+        nullable=False,
+        default="",
+    )
+
+    knowledge_gaps = Column(
+        Text,
+        nullable=False,
+        default="",
+    )
+
+    difficulty_recommendation = Column(
+        String,
+        nullable=False,
+        default="maintain",
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    answer = relationship(
+        "InterviewAnswer",
+        back_populates="analysis",
+    )
+
 
 # ============================================================
 # Interview Feedback Model
-# ============================================================
-# NEW:
-# Stores the AI-generated score and feedback permanently.
-#
-# This is deliberately a separate table so we do NOT need to
-# alter the existing interviews table in the current MVP DB.
 # ============================================================
 
 class InterviewFeedback(Base):
