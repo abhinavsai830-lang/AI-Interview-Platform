@@ -1,5 +1,3 @@
-# backend/models.py
-
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -16,44 +14,17 @@ from sqlalchemy.orm import relationship
 from .database import Base
 
 
-# ============================================================
-# Helper
-# ============================================================
-
 def utc_now():
     return datetime.now(timezone.utc)
 
 
-# ============================================================
-# User Model
-# ============================================================
-
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
-
-    email = Column(
-        String,
-        unique=True,
-        nullable=False,
-        index=True,
-    )
-
-    hashed_password = Column(
-        String,
-        nullable=False,
-    )
-
-    created_at = Column(
-        DateTime(timezone=True),
-        default=utc_now,
-        nullable=False,
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     interviews = relationship(
         "Interview",
@@ -62,60 +33,19 @@ class User(Base):
     )
 
 
-# ============================================================
-# Interview Model
-# ============================================================
-
 class Interview(Base):
     __tablename__ = "interviews"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    subject = Column(String, nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    status = Column(String, default="active", nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
 
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id"),
-        nullable=False,
-    )
-
-    subject = Column(
-        String,
-        nullable=False,
-    )
-
-    duration_minutes = Column(
-        Integer,
-        nullable=False,
-    )
-
-    status = Column(
-        String,
-        default="active",
-        nullable=False,
-    )
-
-    started_at = Column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
-    expires_at = Column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
-    ended_at = Column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
-    user = relationship(
-        "User",
-        back_populates="interviews",
-    )
+    user = relationship("User", back_populates="interviews")
 
     questions = relationship(
         "InterviewQuestion",
@@ -131,46 +61,29 @@ class Interview(Base):
         cascade="all, delete-orphan",
     )
 
+    # ========================================================
+    # NEW PHASE 4.3:
+    # One interview has one interviewer-level evaluation.
+    # ========================================================
 
-# ============================================================
-# Interview Question Model
-# ============================================================
+    evaluation = relationship(
+        "InterviewEvaluation",
+        back_populates="interview",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
 
 class InterviewQuestion(Base):
     __tablename__ = "interview_questions"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
+    id = Column(Integer, primary_key=True, index=True)
+    interview_id = Column(Integer, ForeignKey("interviews.id"), nullable=False)
+    question_number = Column(Integer, nullable=False)
+    question_text = Column(Text, nullable=False)
+    asked_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
-    interview_id = Column(
-        Integer,
-        ForeignKey("interviews.id"),
-        nullable=False,
-    )
-
-    question_number = Column(
-        Integer,
-        nullable=False,
-    )
-
-    question_text = Column(
-        Text,
-        nullable=False,
-    )
-
-    asked_at = Column(
-        DateTime(timezone=True),
-        default=utc_now,
-        nullable=False,
-    )
-
-    interview = relationship(
-        "Interview",
-        back_populates="questions",
-    )
+    interview = relationship("Interview", back_populates="questions")
 
     answer = relationship(
         "InterviewAnswer",
@@ -180,52 +93,21 @@ class InterviewQuestion(Base):
     )
 
 
-# ============================================================
-# Interview Answer Model
-# ============================================================
-
 class InterviewAnswer(Base):
     __tablename__ = "interview_answers"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
-
+    id = Column(Integer, primary_key=True, index=True)
     question_id = Column(
         Integer,
         ForeignKey("interview_questions.id"),
         nullable=False,
         unique=True,
     )
+    transcript = Column(Text, nullable=False)
+    word_count = Column(Integer, default=0, nullable=False)
+    answered_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
-    transcript = Column(
-        Text,
-        nullable=False,
-    )
-
-    word_count = Column(
-        Integer,
-        default=0,
-        nullable=False,
-    )
-
-    answered_at = Column(
-        DateTime(timezone=True),
-        default=utc_now,
-        nullable=False,
-    )
-
-    question = relationship(
-        "InterviewQuestion",
-        back_populates="answer",
-    )
-
-    # ========================================================
-    # NEW:
-    # One answer has one AI quality analysis.
-    # ========================================================
+    question = relationship("InterviewQuestion", back_populates="answer")
 
     analysis = relationship(
         "InterviewAnswerAnalysis",
@@ -235,23 +117,10 @@ class InterviewAnswer(Base):
     )
 
 
-# ============================================================
-# NEW: Interview Answer Analysis Model
-# ============================================================
-# Stores the private AI evaluation of each candidate answer.
-#
-# We keep this separate from InterviewAnswer so the existing
-# interview_answers table does not need to be altered.
-# ============================================================
-
 class InterviewAnswerAnalysis(Base):
     __tablename__ = "interview_answer_analysis"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
     answer_id = Column(
         Integer,
@@ -261,37 +130,13 @@ class InterviewAnswerAnalysis(Base):
         index=True,
     )
 
-    relevance_score = Column(
-        Integer,
-        nullable=False,
-    )
+    relevance_score = Column(Integer, nullable=False)
+    correctness_score = Column(Integer, nullable=False)
+    clarity_score = Column(Integer, nullable=False)
+    depth_score = Column(Integer, nullable=False)
 
-    correctness_score = Column(
-        Integer,
-        nullable=False,
-    )
-
-    clarity_score = Column(
-        Integer,
-        nullable=False,
-    )
-
-    depth_score = Column(
-        Integer,
-        nullable=False,
-    )
-
-    strengths = Column(
-        Text,
-        nullable=False,
-        default="",
-    )
-
-    knowledge_gaps = Column(
-        Text,
-        nullable=False,
-        default="",
-    )
+    strengths = Column(Text, nullable=False, default="")
+    knowledge_gaps = Column(Text, nullable=False, default="")
 
     difficulty_recommendation = Column(
         String,
@@ -305,24 +150,18 @@ class InterviewAnswerAnalysis(Base):
         nullable=False,
     )
 
-    answer = relationship(
-        "InterviewAnswer",
-        back_populates="analysis",
-    )
+    answer = relationship("InterviewAnswer", back_populates="analysis")
 
 
 # ============================================================
-# Interview Feedback Model
+# NEW PHASE 4.3:
+# Interview-level interviewer evaluation.
 # ============================================================
 
-class InterviewFeedback(Base):
-    __tablename__ = "interview_feedback"
+class InterviewEvaluation(Base):
+    __tablename__ = "interview_evaluations"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
     interview_id = Column(
         Integer,
@@ -332,22 +171,43 @@ class InterviewFeedback(Base):
         index=True,
     )
 
-    candidate_score = Column(
+    technical_knowledge_score = Column(Integer, nullable=False)
+    communication_score = Column(Integer, nullable=False)
+    problem_solving_score = Column(Integer, nullable=False)
+    depth_score = Column(Integer, nullable=False)
+    consistency_score = Column(Integer, nullable=False)
+
+    overall_score = Column(Integer, nullable=False)
+
+    summary = Column(Text, nullable=False, default="")
+    strengths = Column(Text, nullable=False, default="")
+    areas_of_improvement = Column(Text, nullable=False, default="")
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    interview = relationship("Interview", back_populates="evaluation")
+
+
+class InterviewFeedback(Base):
+    __tablename__ = "interview_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    interview_id = Column(
         Integer,
+        ForeignKey("interviews.id"),
         nullable=False,
+        unique=True,
+        index=True,
     )
 
-    feedback = Column(
-        Text,
-        nullable=False,
-        default="",
-    )
-
-    areas_of_improvement = Column(
-        Text,
-        nullable=False,
-        default="",
-    )
+    candidate_score = Column(Integer, nullable=False)
+    feedback = Column(Text, nullable=False, default="")
+    areas_of_improvement = Column(Text, nullable=False, default="")
 
     created_at = Column(
         DateTime(timezone=True),

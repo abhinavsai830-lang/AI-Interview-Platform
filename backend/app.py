@@ -35,6 +35,7 @@ from .models import (
     InterviewQuestion,
     InterviewAnswer,
     InterviewAnswerAnalysis,
+    InterviewEvaluation,
 )
 
 from .routes.auth import router as auth_router
@@ -245,6 +246,182 @@ def build_interview_transcript(
             )
 
     return "\n\n".join(transcript_parts)
+
+
+
+# ============================================================
+# PHASE 4.3 — INTERVIEWER EVALUATION
+# ============================================================
+
+def clamp_score(value) -> int:
+    """Convert a value into the platform's 1-5 score range."""
+    try:
+        return min(5, max(1, int(value)))
+    except (TypeError, ValueError):
+        return 3
+
+
+def calculate_overall_evaluation_score(
+    technical_knowledge_score: int,
+    communication_score: int,
+    problem_solving_score: int,
+    depth_score: int,
+    consistency_score: int,
+) -> int:
+    """Calculate the overall interviewer score from five dimensions."""
+    average_score = (
+        technical_knowledge_score
+        + communication_score
+        + problem_solving_score
+        + depth_score
+        + consistency_score
+    ) / 5
+
+    return min(5, max(1, int(round(average_score))))
+
+
+def calculate_fallback_evaluation(
+    db: Session,
+    interview_id: int,
+) -> dict:
+    """
+    Build an interview-level evaluation from persisted per-answer
+    analyses when Groq is unavailable.
+    """
+    questions = (
+        db.query(InterviewQuestion)
+        .filter(InterviewQuestion.interview_id == interview_id)
+        .order_by(InterviewQuestion.question_number.asc())
+        .all()
+    )
+
+    analyses = []
+    for question in questions:
+        answer = (
+            db.query(InterviewAnswer)
+            .filter(InterviewAnswer.question_id == question.id)
+            .first()
+        )
+        if answer and answer.analysis:
+            analyses.append(answer.analysis)
+
+    if not analyses:
+        scores = {
+            "technical_knowledge_score": 3,
+            "communication_score": 3,
+            "problem_solving_score": 3,
+            "depth_score": 3,
+            "consistency_score": 3,
+        }
+    else:
+        scores = {
+            "technical_knowledge_score": clamp_score(
+                round(sum(a.correctness_score for a in analyses) / len(analyses))
+            ),
+            "communication_score": clamp_score(
+                round(sum(a.clarity_score for a in analyses) / len(analyses))
+            ),
+            "problem_solving_score": clamp_score(
+                round(sum(a.relevance_score for a in analyses) / len(analyses))
+            ),
+            "depth_score": clamp_score(
+                round(sum(a.depth_score for a in analyses) / len(analyses))
+            ),
+            "consistency_score": 5,
+        }
+
+        quality_averages = [
+            (
+                a.relevance_score
+                + a.correctness_score
+                + a.clarity_score
+                + a.depth_score
+            ) / 4
+            for a in analyses
+        ]
+
+        spread = max(quality_averages) - min(quality_averages)
+
+        if spread > 3:
+            scores["consistency_score"] = 1
+        elif spread > 2.25:
+            scores["consistency_score"] = 2
+        elif spread > 1.5:
+            scores["consistency_score"] = 3
+        elif spread > 0.75:
+            scores["consistency_score"] = 4
+
+    overall_score = calculate_overall_evaluation_score(**scores)
+
+    strengths = []
+    gaps = []
+    if analyses:
+        strengths = [
+            a.strengths for a in analyses
+            if a.strengths and "unable to analyze" not in a.strengths.lower()
+        ]
+        gaps = [
+            a.knowledge_gaps for a in analyses
+            if a.knowledge_gaps and "no analysis was available" not in a.knowledge_gaps.lower()
+        ]
+
+    return {
+        **scores,
+        "overall_score": overall_score,
+        "summary": (
+            "This interviewer-level evaluation was calculated from "
+            "the recorded response analyses."
+        ),
+        "strengths": (
+            "; ".join(dict.fromkeys(strengths[:4]))
+            if strengths
+            else "You demonstrated a useful foundation across the interview."
+        ),
+        "areas_of_improvement": (
+            "; ".join(dict.fromkeys(gaps[:4]))
+            if gaps
+            else "Continue improving technical depth and clarity in your responses."
+        ),
+    }
+
+
+def save_interview_evaluation(
+    db: Session,
+    interview_id: int,
+    evaluation_data: dict,
+) -> InterviewEvaluation:
+    """Create or update the single evaluation for an interview."""
+    record = (
+        db.query(InterviewEvaluation)
+        .filter(InterviewEvaluation.interview_id == interview_id)
+        .first()
+    )
+
+    fields = {
+        "technical_knowledge_score": evaluation_data["technical_knowledge_score"],
+        "communication_score": evaluation_data["communication_score"],
+        "problem_solving_score": evaluation_data["problem_solving_score"],
+        "depth_score": evaluation_data["depth_score"],
+        "consistency_score": evaluation_data["consistency_score"],
+        "overall_score": evaluation_data["overall_score"],
+        "summary": evaluation_data["summary"],
+        "strengths": evaluation_data["strengths"],
+        "areas_of_improvement": evaluation_data["areas_of_improvement"],
+    }
+
+    if record:
+        for key, value in fields.items():
+            setattr(record, key, value)
+    else:
+        record = InterviewEvaluation(
+            interview_id=interview_id,
+            **fields,
+        )
+        db.add(record)
+
+    db.commit()
+    db.refresh(record)
+    return record
 
 
 def calculate_fallback_feedback(
@@ -767,13 +944,6 @@ def speech_to_text(
 # This analysis is internal and stored in the database.
 # The candidate does not see these scores yet.
 # ============================================================
-# ============================================================
-# RESPONSE QUALITY ANALYSIS
-# ============================================================
-# PHASE 4.1 + PHASE 4.2:
-# Analyze each candidate answer and calculate the next
-# question difficulty deterministically from the four scores.
-# ============================================================
 
 def analyze_candidate_answer(
     subject: str,
@@ -807,7 +977,8 @@ Return ONLY valid JSON in exactly this structure:
     "clarity_score": <integer from 1 to 5>,
     "depth_score": <integer from 1 to 5>,
     "strengths": "<brief description of demonstrated strengths>",
-    "knowledge_gaps": "<brief description of missing or weak areas>"
+    "knowledge_gaps": "<brief description of missing or weak areas>",
+    "difficulty_recommendation": "increase|maintain|decrease"
 }}
 
 SCORING:
@@ -831,6 +1002,18 @@ depth_score:
 1 = superficial or extremely limited
 3 = reasonable basic explanation
 5 = detailed explanation with useful reasoning or examples
+
+DIFFICULTY:
+
+increase:
+Use when the candidate demonstrates strong understanding.
+
+maintain:
+Use when the candidate demonstrates reasonable understanding.
+
+decrease:
+Use when the candidate appears uncertain, gives an incomplete answer,
+or demonstrates a knowledge gap.
 
 Be concise.
 
@@ -882,79 +1065,48 @@ Return JSON only.
 
                 return 3
 
-        # ====================================================
-        # PHASE 4.2:
-        # Normalize the four AI-generated scores first.
-        # ====================================================
-
-        relevance_score = safe_score(
-            parsed.get(
-                "relevance_score"
-            )
+        recommendation = parsed.get(
+            "difficulty_recommendation",
+            "maintain"
         )
 
-        correctness_score = safe_score(
-            parsed.get(
-                "correctness_score"
-            )
-        )
+        if recommendation not in {
+            "increase",
+            "maintain",
+            "decrease",
+        }:
 
-        clarity_score = safe_score(
-            parsed.get(
-                "clarity_score"
-            )
-        )
-
-        depth_score = safe_score(
-            parsed.get(
-                "depth_score"
-            )
-        )
-
-        # ====================================================
-        # PHASE 4.2:
-        # Deterministic adaptive difficulty.
-        #
-        # 4.0 - 5.0 -> increase
-        # 2.8 - 3.9 -> maintain
-        # 1.0 - 2.7 -> decrease
-        #
-        # The backend owns this decision.
-        # Do not trust an LLM-generated difficulty label.
-        # ====================================================
-
-        average_score = (
-            relevance_score
-            + correctness_score
-            + clarity_score
-            + depth_score
-        ) / 4
-
-        if average_score >= 4.0:
-
-            difficulty_recommendation = "increase"
-
-        elif average_score >= 2.8:
-
-            difficulty_recommendation = "maintain"
-
-        else:
-
-            difficulty_recommendation = "decrease"
+            recommendation = "maintain"
 
         return {
 
             "relevance_score":
-                relevance_score,
+                safe_score(
+                    parsed.get(
+                        "relevance_score"
+                    )
+                ),
 
             "correctness_score":
-                correctness_score,
+                safe_score(
+                    parsed.get(
+                        "correctness_score"
+                    )
+                ),
 
             "clarity_score":
-                clarity_score,
+                safe_score(
+                    parsed.get(
+                        "clarity_score"
+                    )
+                ),
 
             "depth_score":
-                depth_score,
+                safe_score(
+                    parsed.get(
+                        "depth_score"
+                    )
+                ),
 
             "strengths":
                 str(
@@ -973,26 +1125,27 @@ Return JSON only.
                 ),
 
             "difficulty_recommendation":
-                difficulty_recommendation,
+                recommendation,
 
         }
 
-    except Exception:
+    except Exception as error:
 
-        print(
-            "\nResponse Analysis Error"
-        )
-
-        traceback.print_exc()
+        if is_groq_rate_limit_error(error):
+            print(
+                "\nGroq rate limit reached during response analysis."
+            )
+        else:
+            print(
+                "\nResponse Analysis Error"
+            )
+            traceback.print_exc()
 
         return {
 
             "relevance_score": 3,
-
             "correctness_score": 3,
-
             "clarity_score": 3,
-
             "depth_score": 3,
 
             "strengths":
@@ -1001,12 +1154,12 @@ Return JSON only.
             "knowledge_gaps":
                 "No analysis was available.",
 
-            # 3+3+3+3 / 4 = 3.0
-            # Therefore fallback difficulty is maintain.
             "difficulty_recommendation":
                 "maintain",
 
         }
+
+
 # ============================================================
 # SUBMIT ANSWER
 # ============================================================
@@ -1703,177 +1856,228 @@ def end_interview(
 
 @app.post("/get-feedback")
 def get_feedback(
-
     db: Session = Depends(get_db),
-
-    current_user: User = Depends(get_current_user)
-
+    current_user: User = Depends(get_current_user),
 ):
-
     session = get_user_session(current_user)
 
     if session.interview_id is None:
-
         return {
-
             "success": False,
-
-            "message":
-                "No interview session was found."
-
+            "message": "No interview session was found.",
         }
 
     interview = (
-
         db.query(Interview)
-
         .filter(
-
-            Interview.id ==
-                session.interview_id,
-
-            Interview.user_id ==
-                current_user.id
-
+            Interview.id == session.interview_id,
+            Interview.user_id == current_user.id,
         )
-
         .first()
-
     )
 
     if not interview:
-
         return {
-
             "success": False,
-
-            "message":
-                "Interview not found."
-
+            "message": "Interview not found.",
         }
-
-    # ========================================================
-    # NEW:
-    # Build final feedback context directly from persisted
-    # interview questions and candidate answers.
-    # ========================================================
 
     transcript = build_interview_transcript(
         db,
-        interview.id
+        interview.id,
     )
 
     if not transcript:
-
         return {
-
             "success": False,
-
-            "message":
-                "No interview responses were found."
-
+            "message": "No interview responses were found.",
         }
 
-    feedback_prompt = FEEDBACK_PROMPT.format(
+    # ========================================================
+    # PHASE 4.3:
+    # One model call returns interview-level evaluation plus
+    # the existing candidate-facing feedback.
+    #
+    # This avoids adding another Groq call.
+    # ========================================================
 
-        subject=
-            session.current_subject
+    evaluation_prompt = f"""
+You are a senior technical interviewer reviewing a completed
+{session.current_subject} interview.
 
-    )
+Evaluate the candidate based ONLY on the complete persisted
+interview transcript below.
 
-    full_feedback_prompt = f"""
-{feedback_prompt}
+Return ONLY valid JSON with this exact structure:
 
-Below is the COMPLETE persisted interview transcript.
+{{
+    "evaluation": {{
+        "technical_knowledge_score": <integer 1-5>,
+        "communication_score": <integer 1-5>,
+        "problem_solving_score": <integer 1-5>,
+        "depth_score": <integer 1-5>,
+        "consistency_score": <integer 1-5>,
+        "summary": "<concise interviewer-level assessment>",
+        "strengths": "<specific strengths demonstrated across the interview>",
+        "areas_of_improvement": "<specific weaknesses or gaps observed across the interview>"
+    }},
+    "feedback": {{
+        "feedback": "<detailed candidate-facing feedback based on actual answers>",
+        "areas_of_improvement": "<constructive candidate-facing improvement advice>"
+    }}
+}}
 
-Use ONLY this transcript to generate feedback.
+Evaluation rules:
 
-INTERVIEW TRANSCRIPT:
+technical_knowledge_score:
+1 = major technical gaps
+3 = reasonable foundational understanding
+5 = strong and accurate technical understanding
+
+communication_score:
+1 = very unclear
+3 = understandable but inconsistent
+5 = clear and structured
+
+problem_solving_score:
+1 = weak reasoning
+3 = reasonable reasoning
+5 = strong reasoning or practical thinking
+
+depth_score:
+1 = mostly superficial
+3 = adequate explanation
+5 = detailed reasoning or useful examples
+
+consistency_score:
+1 = highly inconsistent
+3 = mixed but generally stable
+5 = consistently strong
+
+Do not invent information.
+Do not include internal scores in candidate-facing feedback.
+Reference only actual answers.
+
+COMPLETE INTERVIEW TRANSCRIPT:
+
 {transcript}
 """
 
     try:
-
-        response = model.invoke(
-            full_feedback_prompt
-        )
-
-        text = extract_message_content(
-            response.content
-        )
-
-        print(
-            f"\n[Feedback Generated]\n{text}\n"
-        )
-
-        cleaned = text.strip()
+        response = model.invoke(evaluation_prompt)
+        text = extract_message_content(response.content)
 
         cleaned = re.sub(
             r"<think>.*?</think>",
             "",
-            cleaned,
-            flags=re.DOTALL
+            text.strip(),
+            flags=re.DOTALL,
         ).strip()
 
         if "```" in cleaned:
-
             parts = cleaned.split("```")
-
             if len(parts) >= 2:
+                cleaned = parts[1].replace("json", "", 1).strip()
 
-                cleaned = (
-                    parts[1]
-                    .replace("json", "", 1)
-                    .strip()
+        parsed = json.loads(cleaned)
+        evaluation = parsed.get("evaluation", {})
+
+        technical = clamp_score(evaluation.get("technical_knowledge_score"))
+        communication = clamp_score(evaluation.get("communication_score"))
+        problem_solving = clamp_score(evaluation.get("problem_solving_score"))
+        depth = clamp_score(evaluation.get("depth_score"))
+        consistency = clamp_score(evaluation.get("consistency_score"))
+
+        overall = calculate_overall_evaluation_score(
+            technical,
+            communication,
+            problem_solving,
+            depth,
+            consistency,
+        )
+
+        evaluation_data = {
+            "technical_knowledge_score": technical,
+            "communication_score": communication,
+            "problem_solving_score": problem_solving,
+            "depth_score": depth,
+            "consistency_score": consistency,
+            "overall_score": overall,
+            "summary": str(evaluation.get("summary", "")),
+            "strengths": str(evaluation.get("strengths", "")),
+            "areas_of_improvement": str(
+                evaluation.get("areas_of_improvement", "")
+            ),
+        }
+
+        save_interview_evaluation(
+            db,
+            interview.id,
+            evaluation_data,
+        )
+
+        generated_feedback = parsed.get("feedback", {})
+
+        candidate_feedback = {
+            "subject": session.current_subject,
+            "candidate_score": overall,
+            "feedback": str(
+                generated_feedback.get(
+                    "feedback",
+                    evaluation_data["summary"],
                 )
-
-        feedback = json.loads(cleaned)
+            ),
+            "areas_of_improvement": str(
+                generated_feedback.get(
+                    "areas_of_improvement",
+                    evaluation_data["areas_of_improvement"],
+                )
+            ),
+        }
 
         return {
-
             "success": True,
-
-            "feedback": feedback
-
+            "feedback": candidate_feedback,
+            "evaluation": evaluation_data,
         }
 
     except Exception as error:
-
         if is_groq_rate_limit_error(error):
+            print("\nGroq rate limit reached during interviewer evaluation.")
+        else:
+            print("\nInterviewer Evaluation Error")
+            traceback.print_exc()
 
-            print(
-                "\nGroq rate limit reached while generating feedback."
-            )
+        # ====================================================
+        # PHASE 4.3 fallback:
+        # Build the interviewer evaluation from persisted
+        # Phase 4.1 answer analyses.
+        # ====================================================
 
-            fallback_feedback = calculate_fallback_feedback(
-                db=db,
-                interview_id=interview.id,
-                subject=session.current_subject
-            )
-
-            return {
-
-                "success": True,
-
-                "feedback": fallback_feedback,
-
-                "fallback": True
-
-            }
-
-        print(
-            "\nFeedback Generation Error"
+        evaluation_data = calculate_fallback_evaluation(
+            db=db,
+            interview_id=interview.id,
         )
 
-        traceback.print_exc()
+        save_interview_evaluation(
+            db,
+            interview.id,
+            evaluation_data,
+        )
+
+        fallback_feedback = calculate_fallback_feedback(
+            db=db,
+            interview_id=interview.id,
+            subject=session.current_subject,
+        )
+
+        fallback_feedback["candidate_score"] = evaluation_data["overall_score"]
 
         return {
-
-            "success": False,
-
-            "message":
-                "Unable to generate feedback."
-
+            "success": True,
+            "feedback": fallback_feedback,
+            "evaluation": evaluation_data,
+            "fallback": True,
         }
 
 
