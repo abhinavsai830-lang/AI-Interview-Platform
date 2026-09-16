@@ -1,5 +1,6 @@
 # backend/routes/resume.py
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Resume, User
+from ..services.profile_builder import build_candidate_profile
 from ..services.resume_parser import extract_resume_text
 
 
@@ -36,9 +38,9 @@ async def upload_resume(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # --------------------------------------------------
-    # Validate file type
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # Validate PDF
+    # ----------------------------------------------------
 
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
@@ -46,30 +48,33 @@ async def upload_resume(
             detail="Only PDF resumes are supported.",
         )
 
-    # --------------------------------------------------
-    # Generate unique filename
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # Save PDF
+    # ----------------------------------------------------
 
     filename = f"user_{current_user.id}_{file.filename}"
     file_path = UPLOAD_DIR / filename
 
-    # --------------------------------------------------
-    # Save PDF
-    # --------------------------------------------------
-
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # --------------------------------------------------
-    # Extract text using PyMuPDF
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # Extract resume text
+    # ----------------------------------------------------
 
     extracted_text = extract_resume_text(str(file_path))
 
-    # --------------------------------------------------
-    # Remove previous resume (optional)
-    # Keep only latest resume per user
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # Build structured profile using LLM
+    # ----------------------------------------------------
+
+    candidate_profile = build_candidate_profile(
+        extracted_text
+    )
+
+    # ----------------------------------------------------
+    # Replace old resume (keep latest)
+    # ----------------------------------------------------
 
     old_resume = (
         db.query(Resume)
@@ -78,21 +83,23 @@ async def upload_resume(
     )
 
     if old_resume:
+
         if os.path.exists(old_resume.file_path):
             os.remove(old_resume.file_path)
 
         db.delete(old_resume)
         db.commit()
 
-    # --------------------------------------------------
-    # Save new resume
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # Save to database
+    # ----------------------------------------------------
 
     resume = Resume(
         user_id=current_user.id,
         filename=file.filename,
         file_path=str(file_path),
         extracted_text=extracted_text,
+        profile_json=json.dumps(candidate_profile),
     )
 
     db.add(resume)
@@ -101,7 +108,11 @@ async def upload_resume(
 
     return {
         "success": True,
-        "message": "Resume uploaded and parsed successfully.",
+        "message": "Resume uploaded successfully.",
         "resume_id": resume.id,
         "characters_extracted": len(extracted_text),
+        "detected_skills": candidate_profile.get("skills", []),
+        "detected_projects": len(
+            candidate_profile.get("projects", [])
+        ),
     }
