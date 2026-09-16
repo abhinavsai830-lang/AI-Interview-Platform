@@ -28,3 +28,13 @@ node_modules/
 .DS_Store
 Thumbs.db
 .idea/
+# User uploaded resumes
+uploads/
+backend/uploads/
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.env

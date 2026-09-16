@@ -219,3 +219,23 @@ class InterviewFeedback(Base):
         "Interview",
         back_populates="feedback_record",
     )
+class Resume(Base):
+    __tablename__ = "resumes"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+
+    uploaded_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    user = relationship("User")

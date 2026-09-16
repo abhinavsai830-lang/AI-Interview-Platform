@@ -37,3 +37,12 @@ class InterviewRequest(BaseModel):
         le=60,
         description="Interview duration in minutes"
     )
+
+
+class ResumeRead(BaseModel):
+    id: int
+    filename: str
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
