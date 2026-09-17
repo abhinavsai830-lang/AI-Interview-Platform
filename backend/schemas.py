@@ -1,7 +1,12 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
-# ---------- Authentication ----------
+
+# ============================================================
+# AUTHENTICATION
+# ============================================================
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -28,19 +33,37 @@ class Token(BaseModel):
     user: UserRead
 
 
-# ---------- Interview ----------
+# ============================================================
+# INTERVIEW
+# ============================================================
 
 class InterviewRequest(BaseModel):
     subject: str
+
     duration_minutes: int = Field(
         ge=1,
         le=60,
-        description="Interview duration in minutes"
+        description="Interview duration in minutes",
+    )
+
+    stage: Literal[
+        "welcome",
+        "begin",
+    ] = Field(
+        default="welcome",
+        description=(
+            "Interview lifecycle stage. "
+            "'welcome' prepares the interview and generates "
+            "the personalized introduction. "
+            "'begin' starts the timed interview and generates "
+            "the first question."
+        ),
     )
 
 
-# ---------- Candidate Profile ----------
-
+# ============================================================
+# CANDIDATE PROFILE
+# ============================================================
 
 class EducationItem(BaseModel):
     degree: str = ""
