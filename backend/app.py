@@ -7,7 +7,9 @@ import base64
 import requests
 import json
 import assemblyai as aai
+import json
 
+from .services.question_generator import generate_personalized_question
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends
@@ -31,6 +33,7 @@ from .database import Base, engine, get_db
 
 from .models import (
     User,
+    Resume,
     Interview,
     InterviewQuestion,
     InterviewAnswer,
@@ -722,7 +725,7 @@ def start_interview(
     session = get_user_session(current_user)
 
     # --------------------------------------------------------
-    # Create server-controlled interview timing
+    # Create interview timing
     # --------------------------------------------------------
 
     start_time = datetime.now(timezone.utc)
@@ -732,7 +735,7 @@ def start_interview(
     )
 
     # --------------------------------------------------------
-    # Create database interview
+    # Create interview record
     # --------------------------------------------------------
 
     interview = Interview(
@@ -758,7 +761,7 @@ def start_interview(
     db.refresh(interview)
 
     # --------------------------------------------------------
-    # Store active session information
+    # Session state
     # --------------------------------------------------------
 
     session.interview_id = interview.id
@@ -768,10 +771,6 @@ def start_interview(
     session.started_at = start_time
 
     session.expires_at = end_time
-
-    # --------------------------------------------------------
-    # Create new LangGraph thread
-    # --------------------------------------------------------
 
     session.thread_id = str(uuid.uuid4())
 
@@ -783,9 +782,7 @@ def start_interview(
 
     session.agent = create_react_agent(
 
-        model=model.bind(
-            tool_choice="none"
-        ),
+        model=model.bind(tool_choice="none"),
 
         tools=[],
 
@@ -793,64 +790,144 @@ def start_interview(
 
     )
 
-    config = {
-        "configurable": {
-            "thread_id": session.thread_id
-        }
-    }
+    # ========================================================
+    # NEW: Resume-aware first question
+    # ========================================================
 
-    # --------------------------------------------------------
-    # Generate first question
-    # --------------------------------------------------------
+    resume = (
 
-    formatted_prompt = INTERVIEW_PROMPT.format(
-        subject=session.current_subject
+        db.query(Resume)
+
+        .filter(Resume.user_id == current_user.id)
+
+        .order_by(Resume.uploaded_at.desc())
+
+        .first()
+
     )
 
-    response = session.agent.invoke(
+    if resume and resume.profile_json:
 
-        {
-            "messages": [
+        try:
+
+            profile = json.loads(resume.profile_json)
+
+            question = generate_personalized_question(profile)
+
+        except Exception:
+
+            # Fallback to generic interview
+            formatted_prompt = INTERVIEW_PROMPT.format(
+                subject=session.current_subject
+            )
+
+            config = {
+                "configurable": {
+                    "thread_id": session.thread_id
+                }
+            }
+
+            response = session.agent.invoke(
 
                 {
-                    "role": "system",
-                    "content": formatted_prompt
+                    "messages": [
+
+                        {
+                            "role": "system",
+                            "content": formatted_prompt
+                        },
+
+                        {
+                            "role": "user",
+                            "content": (
+                                "Start the interview with a warm greeting "
+                                "and ask the first technical question."
+                            )
+                        }
+
+                    ]
                 },
 
-                {
-                    "role": "user",
-                    "content": (
-                        "Start the interview with a warm "
-                        "greeting and ask the first question "
-                        f"about {session.current_subject}. "
-                        "Keep it SHORT."
-                    )
-                }
+                config=config
 
-            ]
-        },
+            )
 
-        config=config
+            content = response["messages"][-1].content
 
-    )
+            if isinstance(content, list):
 
-    content = response["messages"][-1].content
+                question = "".join(
 
-    if isinstance(content, list):
+                    part["text"]
 
-        question = "".join(
+                    for part in content
 
-            part["text"]
+                    if part.get("type") == "text"
 
-            for part in content
+                )
 
-            if part.get("type") == "text"
+            else:
 
-        )
+                question = content
 
     else:
 
-        question = content
+        # ----------------------------------------------------
+        # No resume uploaded → existing behavior
+        # ----------------------------------------------------
+
+        formatted_prompt = INTERVIEW_PROMPT.format(
+            subject=session.current_subject
+        )
+
+        config = {
+            "configurable": {
+                "thread_id": session.thread_id
+            }
+        }
+
+        response = session.agent.invoke(
+
+            {
+                "messages": [
+
+                    {
+                        "role": "system",
+                        "content": formatted_prompt
+                    },
+
+                    {
+                        "role": "user",
+                        "content": (
+                            "Start the interview with a warm greeting "
+                            "and ask the first question."
+                        )
+                    }
+
+                ]
+            },
+
+            config=config
+
+        )
+
+        content = response["messages"][-1].content
+
+        if isinstance(content, list):
+
+            question = "".join(
+
+                part["text"]
+
+                for part in content
+
+                if part.get("type") == "text"
+
+            )
+
+        else:
+
+            question = content
 
     # --------------------------------------------------------
     # Save first question
@@ -872,16 +949,9 @@ def start_interview(
 
     db.commit()
 
-    # ========================================================
-    # NEW:
-    # Send server expiry timestamp to frontend.
-    #
-    # IMPORTANT:
-    # end_time exists HERE because it was created inside
-    # start_interview().
-    #
-    # This header MUST NOT be used in submit_answer().
-    # ========================================================
+    # --------------------------------------------------------
+    # Return audio
+    # --------------------------------------------------------
 
     return StreamingResponse(
 
@@ -901,7 +971,6 @@ def start_interview(
         }
 
     )
-
 
 # ============================================================
 # SPEECH TO TEXT
