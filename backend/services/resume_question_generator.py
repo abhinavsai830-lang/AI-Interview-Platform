@@ -4,6 +4,7 @@ import os
 import re
 
 from dotenv import load_dotenv
+from groq import RateLimitError
 from langchain_groq import ChatGroq
 
 from ..schemas import CandidateProfile
@@ -191,6 +192,9 @@ def build_resume_aware_question(
         ValueError:
             If the profile or subject is invalid.
 
+        RateLimitError:
+            When Groq rate-limits the request.
+
         RuntimeError:
             If the LLM request fails or returns empty text.
     """
@@ -241,6 +245,9 @@ def build_resume_aware_question(
 
     try:
         response = model.invoke(prompt)
+
+    except RateLimitError:
+        raise
 
     except Exception as exc:
         raise RuntimeError(

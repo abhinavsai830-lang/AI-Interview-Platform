@@ -46,6 +46,7 @@ from .routes.auth import router as auth_router
 from .routes.resume import router as resume_router
 from .services.interviewer_welcome import build_interviewer_welcome
 from .services.profile_persistence import get_candidate_profile
+from .services.resume_question_generator import build_resume_aware_question
 # ============================================================
 # ENVIRONMENT VARIABLES
 # ============================================================
@@ -1010,22 +1011,197 @@ def start_interview(
     # Generate the first actual interview question.
     # --------------------------------------------------------
 
-    formatted_prompt = INTERVIEW_PROMPT.format(
-        subject=session.current_subject
+    # --------------------------------------------------------
+    # Load latest candidate profile for resume-aware Question #1.
+    # --------------------------------------------------------
+
+    profile_record = (
+        db.query(CandidateProfileRecord)
+        .join(
+            Resume,
+            CandidateProfileRecord.resume_id == Resume.id,
+        )
+        .filter(
+            Resume.user_id == current_user.id,
+        )
+        .order_by(
+            Resume.uploaded_at.desc()
+        )
+        .first()
     )
 
-    try:
+    candidate_profile = None
 
-        response = session.agent.invoke(
+    if profile_record:
+        try:
+            candidate_profile = get_candidate_profile(
+                db,
+                profile_record.resume_id,
+            )
 
+        except Exception:
+            print(
+                "\nCandidate profile could not be loaded "
+                "for resume-aware Question #1."
+            )
+
+            traceback.print_exc()
+
+            candidate_profile = None
+
+    # --------------------------------------------------------
+    # Generate Question #1.
+    #
+    # Preferred path:
+    #   CandidateProfile -> Resume-aware generator
+    #
+    # Fallback:
+    #   Existing LangGraph interviewer
+    # --------------------------------------------------------
+
+    question = None
+    resume_question_generated = False
+
+    if candidate_profile:
+
+        try:
+            question = build_resume_aware_question(
+                profile=candidate_profile,
+                subject=session.current_subject,
+            )
+
+            resume_question_generated = bool(question)
+
+        except Exception as error:
+
+            if is_groq_rate_limit_error(error):
+                print(
+                    "\nGroq rate limit reached while generating "
+                    "resume-aware Question #1."
+                )
+
+            else:
+                print(
+                    "\nResume-aware Question #1 generation failed."
+                )
+                traceback.print_exc()
+
+            question = None
+
+    # --------------------------------------------------------
+    # Existing generic LangGraph path remains the fallback.
+    # --------------------------------------------------------
+
+    if not question:
+
+        formatted_prompt = INTERVIEW_PROMPT.format(
+            subject=session.current_subject
+        )
+
+        try:
+
+            response = session.agent.invoke(
+
+                {
+                    "messages": [
+
+                        {
+                            "role": "system",
+                            "content": formatted_prompt
+                        },
+
+                        {
+                            "role": "user",
+                            "content": (
+                                "Start the technical interview by asking "
+                                "the first question about "
+                                f"{session.current_subject}. "
+                                "Do not give a greeting or preamble. "
+                                "Ask one clear, concise question. "
+                                "Keep it SHORT."
+                            )
+                        }
+
+                    ]
+                },
+
+                config=config
+
+            )
+
+            question = extract_message_content(
+                response["messages"][-1].content
+            )
+
+            if not question:
+                raise RuntimeError(
+                    "The first interview question was empty."
+                )
+
+        except Exception as error:
+
+            if is_groq_rate_limit_error(error):
+
+                print(
+                    "\nGroq rate limit reached while generating "
+                    "the first interview question."
+                )
+
+                question = (
+                    "Let's begin with the fundamentals. "
+                    f"Can you explain a key concept related to "
+                    f"{session.current_subject} and give a practical example?"
+                )
+
+            else:
+
+                # Keep the interview prepared but not active so
+                # the candidate can safely retry.
+                interview.status = "pending"
+                interview.started_at = None
+                interview.expires_at = None
+
+                db.commit()
+
+                session.started_at = None
+                session.expires_at = None
+                session.question_count = 0
+                session.stage = "welcome"
+
+                traceback.print_exc()
+
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "The interview was prepared, but the first "
+                        "question could not be generated. Please retry."
+                    ),
+                ) from error
+
+    # --------------------------------------------------------
+    # Seed LangGraph memory when Question #1 was generated by
+    # the resume-aware service.
+    #
+    # This does NOT call the LLM again. It only records the
+    # interviewer context and generated Question #1 in the
+    # existing checkpointer so subsequent turns have a
+    # complete conversation history.
+    # --------------------------------------------------------
+
+    if resume_question_generated:
+
+        formatted_prompt = INTERVIEW_PROMPT.format(
+            subject=session.current_subject
+        )
+
+        session.agent.update_state(
+            config,
             {
                 "messages": [
-
                     {
                         "role": "system",
-                        "content": formatted_prompt
+                        "content": formatted_prompt,
                     },
-
                     {
                         "role": "user",
                         "content": (
@@ -1035,62 +1211,15 @@ def start_interview(
                             "Do not give a greeting or preamble. "
                             "Ask one clear, concise question. "
                             "Keep it SHORT."
-                        )
-                    }
-
+                        ),
+                    },
+                    {
+                        "role": "assistant",
+                        "content": question,
+                    },
                 ]
             },
-
-            config=config
-
         )
-
-        question = extract_message_content(
-            response["messages"][-1].content
-        )
-
-        if not question:
-            raise RuntimeError(
-                "The first interview question was empty."
-            )
-
-    except Exception as error:
-
-        if is_groq_rate_limit_error(error):
-            # Keep the interview active when Groq is rate-limited.
-            # A deterministic fallback question lets the candidate
-            # continue without losing the server-controlled timer.
-            print(
-                "\nGroq rate limit reached while generating the first question."
-            )
-
-            question = (
-                "Let's begin with the fundamentals. "
-                f"Can you explain a key concept related to "
-                f"{session.current_subject} and give a practical example?"
-            )
-        else:
-            # Keep the interview prepared but not active so the
-            # candidate can retry if first-question generation fails.
-            interview.status = "pending"
-            interview.started_at = None
-            interview.expires_at = None
-            db.commit()
-
-            session.started_at = None
-            session.expires_at = None
-            session.question_count = 0
-            session.stage = "welcome"
-
-            traceback.print_exc()
-            raise HTTPException(
-                status_code=502,
-                detail=(
-                    "The interview was prepared, but the first "
-                    "question could not be generated. Please retry."
-                ),
-            ) from error
-
     # --------------------------------------------------------
     # Save first question.
     # --------------------------------------------------------
@@ -1847,7 +1976,13 @@ Difficulty recommendation:
     prompt = f"""
 The candidate just answered the previous interview question.
 
-Look at their ACTUAL answer above.
+PREVIOUS INTERVIEW QUESTION:
+{current_question.question_text}
+
+CANDIDATE'S ACTUAL ANSWER:
+{answer}
+
+Look at the candidate's actual answer above.
 
 Do NOT assume or make up what they said.
 
@@ -1860,19 +1995,21 @@ Rules:
 1. Briefly acknowledge what they ACTUALLY said.
 2. Ask one concise follow-up question.
 3. Build the question from their REAL response.
-4. Use the private response analysis to choose an
+4. Use the previous interview question to understand the
+   context of their answer.
+5. Use the private response analysis to choose an
    appropriate difficulty.
-5. The difficulty recommendation was calculated by the backend
+6. The difficulty recommendation was calculated by the backend
    from the four quality scores.
-6. Increase difficulty when the analysis recommends "increase".
-7. Maintain difficulty when the analysis recommends "maintain".
-8. Simplify or reinforce fundamentals when the analysis
+7. Increase difficulty when the analysis recommends "increase".
+8. Maintain difficulty when the analysis recommends "maintain".
+9. Simplify or reinforce fundamentals when the analysis
    recommends "decrease".
-9. Explore a knowledge gap when doing so is useful.
-10. Do not expose scores or internal analysis to the candidate.
-11. Do not mention question numbers.
-12. Do not mention timers or interview duration.
-13. Keep the TOTAL response concise, preferably under 3 sentences.
+10. Explore a knowledge gap when doing so is useful.
+11. Do not expose scores or internal analysis to the candidate.
+12. Do not mention question numbers.
+13. Do not mention timers or interview duration.
+14. Keep the TOTAL response concise, preferably under 3 sentences.
 
 Be conversational and adaptive.
 """
