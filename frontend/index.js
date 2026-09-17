@@ -12,6 +12,9 @@ let currentAudio = null;
 
 let currentSubject = null;
 
+// Interview lifecycle: welcome -> ready -> active.
+let interviewStage = "welcome";
+
 let isSpeaking = false;
 
 let authToken =
@@ -510,6 +513,9 @@ function logout() {
     currentUser =
         null;
 
+    interviewStage =
+        "welcome";
+
 
     localStorage.removeItem(
         "authToken"
@@ -871,6 +877,9 @@ function showInterviewRoom(
     currentSubject =
         subject;
 
+    interviewStage =
+        "welcome";
+
 
     localStorage.setItem(
         "selectedSubject",
@@ -1068,6 +1077,34 @@ function updateQuestionText(
 
         questionText.textContent =
             text;
+
+    }
+
+}
+
+
+// ============================================================
+// INTERVIEW START BUTTON
+// ============================================================
+
+function setStartInterviewButton(stage) {
+
+    if (!startInterviewBtn) {
+
+        return;
+
+    }
+
+
+    if (stage === "ready") {
+
+        startInterviewBtn.innerHTML =
+            "<i class=\"fas fa-circle-check mr-2\"></i> I'm Ready";
+
+    } else {
+
+        startInterviewBtn.innerHTML =
+            "<i class=\"fas fa-play mr-2\"></i> Start Interview";
 
     }
 
@@ -1539,6 +1576,8 @@ function resetToWelcome() {
 
     stopInterviewTimer();
 
+    interviewStage =
+        "welcome";
 
     if (
         mediaRecorder &&
@@ -1550,75 +1589,42 @@ function resetToWelcome() {
 
     }
 
-
-    mediaRecorder =
-        null;
-
-
-    recordingChunks =
-        [];
-
-
-    recordedBlob =
-        null;
-
+    mediaRecorder = null;
+    recordingChunks = [];
+    recordedBlob = null;
 
     if (currentAudio) {
 
         currentAudio.pause();
-
-        currentAudio.src =
-            "";
-
-        currentAudio =
-            null;
+        currentAudio.src = "";
+        currentAudio = null;
 
     }
 
-
-    currentSubject =
-        null;
-
-
-    isSpeaking =
-        false;
-
+    currentSubject = null;
+    isSpeaking = false;
 
     if (welcomeState) {
-
-        welcomeState.classList.remove(
-            "hidden"
-        );
-
+        welcomeState.classList.remove("hidden");
     }
-
 
     if (interviewState) {
-
-        interviewState.classList.add(
-            "hidden"
-        );
-
+        interviewState.classList.add("hidden");
     }
-
 
     if (feedbackSection) {
-
-        feedbackSection.classList.add(
-            "hidden"
-        );
-
+        feedbackSection.classList.add("hidden");
     }
-
 
     if (recordBtn) {
 
+        recordBtn.classList.add("hidden");
+        recordBtn.disabled = true;
         recordBtn.classList.remove(
             "bg-red-500",
             "text-white",
             "recording-ring"
         );
-
         recordBtn.classList.add(
             "bg-zinc-800",
             "text-zinc-300"
@@ -1626,47 +1632,44 @@ function resetToWelcome() {
 
     }
 
-
     if (micIcon) {
-
-        micIcon.classList.remove(
-            "hidden"
-        );
-
+        micIcon.classList.remove("hidden");
     }
-
 
     if (stopIcon) {
-
-        stopIcon.classList.add(
-            "hidden"
-        );
-
+        stopIcon.classList.add("hidden");
     }
-
 
     if (submitBtn) {
 
-        submitBtn.classList.add(
-            "hidden"
-        );
+        submitBtn.classList.add("hidden");
+        submitBtn.disabled = true;
 
     }
 
+    if (endInterviewBtn) {
+        endInterviewBtn.disabled = true;
+    }
+
+    if (startInterviewBtn) {
+
+        setStartInterviewButton("welcome");
+        startInterviewBtn.classList.remove("hidden");
+        startInterviewBtn.disabled = false;
+
+    }
+
+    if (recordingStatus) {
+        recordingStatus.textContent =
+            "Select a subject and click Start Interview to begin";
+    }
 
     if (scoreCircle) {
-
-        scoreCircle.style.strokeDashoffset =
-            "301.6";
-
+        scoreCircle.style.strokeDashoffset = "301.6";
     }
 
-
     if (scoreValue) {
-
-        scoreValue.textContent =
-            "0";
-
+        scoreValue.textContent = "0";
     }
 
 }
@@ -2315,176 +2318,187 @@ function stopRecording() {
 
 async function startInterview() {
 
-    if (
-        !requireAuthentication()
-    ) {
-
+    if (!requireAuthentication()) {
         return;
-
     }
 
-
-    if (
-        !currentSubject
-    ) {
-
+    if (!currentSubject) {
         throw new Error(
             "No interview subject selected."
         );
-
     }
 
+    const requestedStage =
+        interviewStage === "ready"
+            ? "begin"
+            : "welcome";
 
     if (startInterviewBtn) {
-
-        startInterviewBtn.disabled =
-            true;
-
-        startInterviewBtn.classList.add(
-            "hidden"
-        );
-
+        startInterviewBtn.disabled = true;
+        startInterviewBtn.classList.add("hidden");
     }
-
 
     if (recordBtn) {
-
-        recordBtn.classList.remove(
-            "hidden"
-        );
-
-        recordBtn.disabled =
-            true;
-
+        recordBtn.classList.add("hidden");
+        recordBtn.disabled = true;
     }
-
 
     if (recordingStatus) {
-
         recordingStatus.textContent =
-            "Connecting to Natalie...";
-
+            requestedStage === "welcome"
+                ? "Preparing your personalized introduction..."
+                : "Starting your interview...";
     }
 
-
     updateQuestionText(
-        "Natalie is preparing your first question..."
+        requestedStage === "welcome"
+            ? "Natalie is preparing your personalized introduction..."
+            : "Natalie is preparing your first question..."
     );
 
-
-    setSpeakerState(
-        "speaking"
-    );
-
+    setSpeakerState("speaking");
 
     try {
 
-        const response =
-            await fetch(
-                startInterviewApiUrl,
-                {
+        const response = await fetch(
+            startInterviewApiUrl,
+            {
+                method: "POST",
+                headers: authHeaders({
+                    "Content-Type": "application/json"
+                }),
+                body: JSON.stringify({
+                    subject: currentSubject,
+                    duration_minutes: selectedDuration,
+                    stage: requestedStage
+                })
+            }
+        );
 
-                    method:
-                        "POST",
+        if (response.status === 401) {
+            logout();
+            return;
+        }
 
-                    headers:
-                        authHeaders({
-                            "Content-Type":
-                                "application/json"
-                        }),
+        if (!response.ok) {
+            throw new Error(
+                `Failed to ${requestedStage === "welcome" ? "prepare the interview" : "begin the interview"}. HTTP ${response.status}`
+            );
+        }
 
-                    body:
-                        JSON.stringify({
+        const responseStage =
+            response.headers.get("X-Interview-Stage") ||
+            requestedStage;
 
-                            subject:
-                                currentSubject,
+        const questionNumber =
+            response.headers.get("X-Question-Number");
 
-                            duration_minutes:
-                                selectedDuration
+        if (questionNumber) {
+            updateQuestionNumber(questionNumber);
+        }
 
-                        })
+        // ----------------------------------------------------
+        // WELCOME STAGE
+        // ----------------------------------------------------
 
+        if (responseStage === "welcome") {
+
+            interviewStage = "ready";
+            stopInterviewTimer();
+
+            if (recordBtn) {
+                recordBtn.classList.add("hidden");
+                recordBtn.disabled = true;
+            }
+
+            if (submitBtn) {
+                submitBtn.classList.add("hidden");
+                submitBtn.disabled = true;
+            }
+
+            if (endInterviewBtn) {
+                endInterviewBtn.disabled = true;
+            }
+
+            setStartInterviewButton("ready");
+
+            await handleAudioStream(
+                response,
+                () => {
+
+                    if (recordingStatus) {
+                        recordingStatus.textContent =
+                            "Welcome complete — click I'm Ready when you're ready.";
+                    }
+
+                    updateQuestionText(
+                        "Click I'm Ready when you're ready to begin the interview."
+                    );
+
+                    if (startInterviewBtn) {
+                        startInterviewBtn.classList.remove("hidden");
+                        startInterviewBtn.disabled = false;
+                    }
+
+                    setStartInterviewButton("ready");
                 }
             );
 
-
-        if (
-            response.status ===
-            401
-        ) {
-
-            logout();
+            // Ensure the button remains usable if autoplay is blocked.
+            if (startInterviewBtn) {
+                startInterviewBtn.classList.remove("hidden");
+                startInterviewBtn.disabled = false;
+                setStartInterviewButton("ready");
+            }
 
             return;
-
         }
 
+        // ----------------------------------------------------
+        // ACTIVE STAGE
+        // ----------------------------------------------------
 
-        if (!response.ok) {
-
+        if (responseStage !== "active") {
             throw new Error(
-                `Failed to start interview. HTTP ${response.status}`
+                `Unexpected interview stage: ${responseStage}`
             );
-
         }
-
 
         const expiresAt =
-            response.headers.get(
-                "X-Interview-Expires-At"
-            );
-
-
-        const questionNumber =
-            response.headers.get(
-                "X-Question-Number"
-            );
-
+            response.headers.get("X-Interview-Expires-At");
 
         if (!expiresAt) {
-
             throw new Error(
                 "Server did not return interview expiry time."
             );
-
         }
 
-
-        if (
-            questionNumber
-        ) {
-
-            updateQuestionNumber(
-                questionNumber
-            );
-
-        }
-
-
-        startInterviewTimer(
-            expiresAt
-        );
-
-
+        interviewStage = "active";
+        startInterviewTimer(expiresAt);
         prepareRecordingUI();
-
 
         await handleAudioStream(
             response,
             () => {
-
                 if (
                     interviewExpiresAt &&
-                    Date.now() <
-                        interviewExpiresAt
+                    Date.now() < interviewExpiresAt
                 ) {
-
                     enableRecording();
-
                 }
-
             }
         );
+
+        // If autoplay is blocked, allow recording once the question
+        // has been received and the interview has not expired.
+        if (
+            interviewExpiresAt &&
+            Date.now() < interviewExpiresAt &&
+            recordBtn &&
+            recordBtn.disabled
+        ) {
+            enableRecording();
+        }
 
     } catch (error) {
 
@@ -2493,44 +2507,36 @@ async function startInterview() {
             error
         );
 
+        stopInterviewTimer();
+
+        if (recordBtn) {
+            recordBtn.classList.add("hidden");
+            recordBtn.disabled = true;
+        }
+
+        if (startInterviewBtn) {
+            startInterviewBtn.classList.remove("hidden");
+            startInterviewBtn.disabled = false;
+        }
+
+        setSpeakerState("waiting");
 
         if (recordingStatus) {
-
             recordingStatus.textContent =
                 error.message ||
                 "Unable to start the interview.";
-
         }
 
+        interviewStage =
+            requestedStage === "welcome"
+                ? "welcome"
+                : "ready";
 
-        setSpeakerState(
-            "waiting"
+        setStartInterviewButton(
+            interviewStage === "ready"
+                ? "ready"
+                : "welcome"
         );
-
-
-        stopInterviewTimer();
-
-
-        if (recordBtn) {
-
-            recordBtn.classList.add(
-                "hidden"
-            );
-
-        }
-
-
-        if (startInterviewBtn) {
-
-            startInterviewBtn.classList.remove(
-                "hidden"
-            );
-
-            startInterviewBtn.disabled =
-                false;
-
-        }
-
     }
 
 }
