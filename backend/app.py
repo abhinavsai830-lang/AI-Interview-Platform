@@ -40,7 +40,7 @@ from .models import (
 
 from .routes.auth import router as auth_router
 
-
+from .routes.resume import router as resume_router
 # ============================================================
 # ENVIRONMENT VARIABLES
 # ============================================================
@@ -69,8 +69,7 @@ app = FastAPI(
 Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
-
-
+app.include_router(resume_router)
 # ============================================================
 # CORS
 # ============================================================
