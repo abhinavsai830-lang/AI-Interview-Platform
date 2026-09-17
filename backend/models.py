@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
 )
@@ -21,9 +22,24 @@ def utc_now():
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    hashed_password = Column(String, nullable=False)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    hashed_password = Column(
+        String,
+        nullable=False,
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         default=utc_now,
@@ -43,17 +59,103 @@ class User(Base):
     )
 
 
+class CandidateProfileRecord(Base):
+    __tablename__ = "candidate_profiles"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    resume_id = Column(
+        Integer,
+        ForeignKey("resumes.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    profile_data = Column(
+        JSON,
+        nullable=False,
+    )
+
+    schema_version = Column(
+        String,
+        nullable=False,
+        default="1.0",
+    )
+
+    model_name = Column(
+        String,
+        nullable=False,
+    )
+
+    generated_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    resume = relationship(
+        "Resume",
+        back_populates="candidate_profile",
+    )
+
+
 class Interview(Base):
     __tablename__ = "interviews"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    subject = Column(String, nullable=False)
-    duration_minutes = Column(Integer, nullable=False)
-    status = Column(String, default="active", nullable=False)
-    started_at = Column(DateTime(timezone=True), nullable=True)
-    expires_at = Column(DateTime(timezone=True), nullable=True)
-    ended_at = Column(DateTime(timezone=True), nullable=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    subject = Column(
+        String,
+        nullable=False,
+    )
+
+    duration_minutes = Column(
+        Integer,
+        nullable=False,
+    )
+
+    status = Column(
+        String,
+        default="active",
+        nullable=False,
+    )
+
+    started_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    expires_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    ended_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     user = relationship(
         "User",
@@ -85,14 +187,28 @@ class Interview(Base):
 class InterviewQuestion(Base):
     __tablename__ = "interview_questions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
     interview_id = Column(
         Integer,
         ForeignKey("interviews.id"),
         nullable=False,
     )
-    question_number = Column(Integer, nullable=False)
-    question_text = Column(Text, nullable=False)
+
+    question_number = Column(
+        Integer,
+        nullable=False,
+    )
+
+    question_text = Column(
+        Text,
+        nullable=False,
+    )
+
     asked_at = Column(
         DateTime(timezone=True),
         default=utc_now,
@@ -115,7 +231,11 @@ class InterviewQuestion(Base):
 class InterviewAnswer(Base):
     __tablename__ = "interview_answers"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     question_id = Column(
         Integer,
@@ -124,7 +244,10 @@ class InterviewAnswer(Base):
         unique=True,
     )
 
-    transcript = Column(Text, nullable=False)
+    transcript = Column(
+        Text,
+        nullable=False,
+    )
 
     word_count = Column(
         Integer,
@@ -154,7 +277,11 @@ class InterviewAnswer(Base):
 class InterviewAnswerAnalysis(Base):
     __tablename__ = "interview_answer_analysis"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     answer_id = Column(
         Integer,
@@ -164,10 +291,25 @@ class InterviewAnswerAnalysis(Base):
         index=True,
     )
 
-    relevance_score = Column(Integer, nullable=False)
-    correctness_score = Column(Integer, nullable=False)
-    clarity_score = Column(Integer, nullable=False)
-    depth_score = Column(Integer, nullable=False)
+    relevance_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    correctness_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    clarity_score = Column(
+        Integer,
+        nullable=False,
+    )
+
+    depth_score = Column(
+        Integer,
+        nullable=False,
+    )
 
     strengths = Column(
         Text,
@@ -202,7 +344,11 @@ class InterviewAnswerAnalysis(Base):
 class InterviewEvaluation(Base):
     __tablename__ = "interview_evaluations"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     interview_id = Column(
         Integer,
@@ -275,7 +421,11 @@ class InterviewEvaluation(Base):
 class InterviewFeedback(Base):
     __tablename__ = "interview_feedback"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     interview_id = Column(
         Integer,
@@ -376,4 +526,11 @@ class Resume(Base):
     user = relationship(
         "User",
         back_populates="resumes",
+    )
+
+    candidate_profile = relationship(
+        "CandidateProfileRecord",
+        back_populates="resume",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
