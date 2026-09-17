@@ -37,3 +37,78 @@ class InterviewRequest(BaseModel):
         le=60,
         description="Interview duration in minutes"
     )
+
+
+# ---------- Candidate Profile ----------
+
+
+class EducationItem(BaseModel):
+    degree: str = ""
+    field_of_study: str = ""
+    institution: str = ""
+    start_date: str = ""
+    end_date: str = ""
+
+    class Config:
+        extra = "forbid"
+
+
+class ProjectItem(BaseModel):
+    name: str = ""
+    description: str = ""
+    technologies: list[str] = Field(
+        default_factory=list
+    )
+
+    class Config:
+        extra = "forbid"
+
+
+class ExperienceItem(BaseModel):
+    job_title: str = ""
+    company: str = ""
+    description: str = ""
+    technologies: list[str] = Field(
+        default_factory=list
+    )
+    start_date: str = ""
+    end_date: str = ""
+
+    class Config:
+        extra = "forbid"
+
+
+class CertificationItem(BaseModel):
+    name: str = ""
+    issuer: str = ""
+    date: str = ""
+
+    class Config:
+        extra = "forbid"
+
+
+class CandidateProfile(BaseModel):
+    name: str = ""
+
+    education: list[EducationItem] = Field(
+        default_factory=list
+    )
+
+    skills: list[str] = Field(
+        default_factory=list
+    )
+
+    projects: list[ProjectItem] = Field(
+        default_factory=list
+    )
+
+    experience: list[ExperienceItem] = Field(
+        default_factory=list
+    )
+
+    certifications: list[CertificationItem] = Field(
+        default_factory=list
+    )
+
+    class Config:
+        extra = "forbid"
