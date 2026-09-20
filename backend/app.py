@@ -728,7 +728,29 @@ def start_interview(
 ):
 
     session = get_user_session(current_user)
+    latest_profile_record = (
+        db.query(CandidateProfileRecord)
+        .join(
+            Resume,
+            CandidateProfileRecord.resume_id == Resume.id,
+        )
+        .filter(
+            Resume.user_id == current_user.id,
+        )
+        .order_by(
+            Resume.uploaded_at.desc()
+        )
+        .first()
+    )
 
+    if latest_profile_record is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Please upload your resume before starting a "
+                "resume-based interview."
+            ),
+        )
     # ========================================================
     # STAGE 1 — PERSONALIZED WELCOME
     # ========================================================
