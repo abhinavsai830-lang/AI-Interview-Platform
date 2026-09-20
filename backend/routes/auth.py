@@ -1,5 +1,5 @@
 # backend/routes/auth.py
-
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import (
     APIRouter,
     Depends,
@@ -174,7 +174,56 @@ def login(
         user=user,
     )
 
+@router.post(
+    "/token"
+)
+def token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    """
+    OAuth2-compatible authentication endpoint.
 
+    Used by Swagger UI and OAuth2 clients.
+
+    Request format:
+
+        application/x-www-form-urlencoded
+
+        username=<email>
+        password=<password>
+    """
+
+    user = (
+        db.query(User)
+        .filter(
+            User.email ==
+            form_data.username.lower()
+        )
+        .first()
+    )
+
+    if (
+        not user
+        or not verify_password(
+            form_data.password,
+            user.hashed_password,
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    return {
+        "access_token": create_access_token(
+            str(user.id)
+        ),
+        "token_type": "bearer",
+    }
 # ============================================================
 # CURRENT USER
 # ============================================================

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi import UploadFile
 from fastapi import File
 from fastapi.responses import StreamingResponse
@@ -36,11 +37,17 @@ from .models import (
     InterviewAnswer,
     InterviewAnswerAnalysis,
     InterviewEvaluation,
+    Resume,
+    CandidateProfileRecord,
 )
 
 from .routes.auth import router as auth_router
 
-
+from .routes.resume import router as resume_router
+from .services.interviewer_welcome import build_interviewer_welcome
+from .services.profile_persistence import get_candidate_profile
+from .services.resume_question_generator import build_resume_aware_question
+from .services.resume_followup_generator import build_resume_aware_followup
 # ============================================================
 # ENVIRONMENT VARIABLES
 # ============================================================
@@ -69,8 +76,7 @@ app = FastAPI(
 Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
-
-
+app.include_router(resume_router)
 # ============================================================
 # CORS
 # ============================================================
@@ -90,6 +96,7 @@ app.add_middleware(
         "X-Question-Number",
         "X-Interview-Complete",
         "X-Interview-Expires-At",
+        "X-Interview-Stage",
     ]
 )
 
@@ -129,6 +136,7 @@ class InterviewSession:
         self.duration_minutes = 0
         self.started_at = None
         self.expires_at = None
+        self.stage = "idle"
 
         self.thread_id = "interview_session"
 
@@ -720,64 +728,287 @@ def start_interview(
 ):
 
     session = get_user_session(current_user)
+    latest_profile_record = (
+        db.query(CandidateProfileRecord)
+        .join(
+            Resume,
+            CandidateProfileRecord.resume_id == Resume.id,
+        )
+        .filter(
+            Resume.user_id == current_user.id,
+        )
+        .order_by(
+            Resume.uploaded_at.desc()
+        )
+        .first()
+    )
+
+    if latest_profile_record is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Please upload your resume before starting a "
+                "resume-based interview."
+            ),
+        )
+    # ========================================================
+    # STAGE 1 — PERSONALIZED WELCOME
+    # ========================================================
+
+    if data.stage == "welcome":
+
+        # The database is the source of truth for whether an
+        # interview is still active. The in-memory session may
+        # contain stale state after an interview has completed.
+        current_session_interview = None
+
+        if session.interview_id:
+            current_session_interview = (
+                db.query(Interview)
+                .filter(
+                    Interview.id == session.interview_id,
+                    Interview.user_id == current_user.id,
+                )
+                .first()
+            )
+
+            if (
+                current_session_interview
+                and current_session_interview.status == "active"
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="An interview is already active.",
+                )
+
+        # ----------------------------------------------------
+        # Reuse an existing pending interview when possible.
+        # This makes the welcome stage safe to retry without
+        # accidentally changing the selected interview duration.
+        # ----------------------------------------------------
+
+        interview = None
+
+        if (
+            current_session_interview
+            and current_session_interview.status == "pending"
+            and current_session_interview.subject == data.subject
+            and current_session_interview.duration_minutes == data.duration_minutes
+        ):
+            interview = current_session_interview
+
+        if interview is None:
+            interview = (
+                db.query(Interview)
+                .filter(
+                    Interview.user_id == current_user.id,
+                    Interview.status == "pending",
+                    Interview.subject == data.subject,
+                    Interview.duration_minutes == data.duration_minutes,
+                )
+                .order_by(Interview.id.desc())
+                .first()
+            )
+
+        # ----------------------------------------------------
+        # Create pending interview when no preparation exists.
+        # The timer does NOT start here.
+        # ----------------------------------------------------
+
+        if interview is None:
+            interview = Interview(
+                user_id=current_user.id,
+                subject=data.subject,
+                duration_minutes=data.duration_minutes,
+                started_at=None,
+                expires_at=None,
+                status="pending",
+            )
+
+            db.add(interview)
+            db.commit()
+            db.refresh(interview)
+
+        # ----------------------------------------------------
+        # Store welcome-stage session state.
+        # ----------------------------------------------------
+
+        session.interview_id = interview.id
+        session.duration_minutes = interview.duration_minutes
+        session.current_subject = interview.subject
+        session.started_at = None
+        session.expires_at = None
+        session.question_count = 0
+        session.stage = "welcome"
+
+        # ----------------------------------------------------
+        # Load the latest candidate profile associated with one
+        # of the user's resumes.
+        # ----------------------------------------------------
+
+        profile_record = (
+            db.query(CandidateProfileRecord)
+            .join(
+                Resume,
+                CandidateProfileRecord.resume_id == Resume.id,
+            )
+            .filter(
+                Resume.user_id == current_user.id,
+            )
+            .order_by(Resume.uploaded_at.desc())
+            .first()
+        )
+
+        candidate_profile = None
+
+        if profile_record:
+            try:
+                candidate_profile = get_candidate_profile(
+                    db,
+                    profile_record.resume_id,
+                )
+            except RuntimeError as error:
+                print(
+                    "\nStored candidate profile validation failed."
+                )
+                traceback.print_exc()
+                candidate_profile = None
+
+        # ----------------------------------------------------
+        # Generate personalized welcome when a profile exists.
+        # Fall back to a deterministic generic welcome otherwise.
+        # ----------------------------------------------------
+
+        if candidate_profile:
+            try:
+                welcome_message = build_interviewer_welcome(
+                    profile=candidate_profile,
+                    subject=interview.subject,
+                )
+            except Exception as error:
+                print(
+                    "\nInterviewer Welcome Error"
+                )
+                if not is_groq_rate_limit_error(error):
+                    traceback.print_exc()
+
+                candidate_name = (
+                    candidate_profile.name.strip()
+                    if candidate_profile.name
+                    else "there"
+                )
+
+                welcome_message = (
+                    f"Hello {candidate_name}, welcome to your "
+                    f"{interview.subject} interview. "
+                    "We will explore your technical understanding "
+                    "and practical thinking. "
+                    "Take a moment to get ready, and we will begin "
+                    "when you are ready."
+                )
+        else:
+            welcome_message = (
+                "Hello, welcome to your "
+                f"{interview.subject} interview. "
+                "We will explore your technical understanding "
+                "and practical thinking. "
+                "Take a moment to get ready, and we will begin "
+                "when you are ready."
+            )
+
+        return StreamingResponse(
+
+            stream_audio(welcome_message),
+
+            media_type="text/plain",
+
+            headers={
+                "X-Question-Number": "0",
+                "X-Interview-Complete": "false",
+                "X-Interview-Stage": "welcome",
+            },
+
+        )
+
+    # ========================================================
+    # STAGE 2 — BEGIN TIMED INTERVIEW
+    # ========================================================
 
     # --------------------------------------------------------
-    # Create server-controlled interview timing
+    # Find the pending interview prepared during the welcome.
+    # --------------------------------------------------------
+
+    interview = None
+
+    if session.interview_id:
+        interview = (
+            db.query(Interview)
+            .filter(
+                Interview.id == session.interview_id,
+                Interview.user_id == current_user.id,
+                Interview.status == "pending",
+                Interview.subject == data.subject,
+                Interview.duration_minutes == data.duration_minutes,
+            )
+            .first()
+        )
+
+    if interview is None:
+        interview = (
+            db.query(Interview)
+            .filter(
+                Interview.user_id == current_user.id,
+                Interview.status == "pending",
+                Interview.subject == data.subject,
+                Interview.duration_minutes == data.duration_minutes,
+            )
+            .order_by(Interview.id.desc())
+            .first()
+        )
+
+    if interview is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "No prepared interview was found. "
+                "Please start the interview from the welcome stage first."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Start server-controlled interview timing NOW.
     # --------------------------------------------------------
 
     start_time = datetime.now(timezone.utc)
 
     end_time = start_time + timedelta(
-        minutes=data.duration_minutes
+        minutes=interview.duration_minutes
     )
 
-    # --------------------------------------------------------
-    # Create database interview
-    # --------------------------------------------------------
-
-    interview = Interview(
-
-        user_id=current_user.id,
-
-        subject=data.subject,
-
-        duration_minutes=data.duration_minutes,
-
-        started_at=start_time,
-
-        expires_at=end_time,
-
-        status="active"
-
-    )
-
-    db.add(interview)
+    interview.started_at = start_time
+    interview.expires_at = end_time
+    interview.status = "active"
 
     db.commit()
-
     db.refresh(interview)
 
     # --------------------------------------------------------
-    # Store active session information
+    # Store active session information.
     # --------------------------------------------------------
 
     session.interview_id = interview.id
-
-    session.duration_minutes = data.duration_minutes
-
+    session.duration_minutes = interview.duration_minutes
     session.started_at = start_time
-
     session.expires_at = end_time
+    session.current_subject = interview.subject
+    session.question_count = 1
+    session.stage = "active"
 
     # --------------------------------------------------------
-    # Create new LangGraph thread
+    # Create a fresh LangGraph thread for the actual interview.
     # --------------------------------------------------------
 
     session.thread_id = str(uuid.uuid4())
-
-    session.current_subject = data.subject
-
-    session.question_count = 1
 
     session.checkpointer = InMemorySaver()
 
@@ -800,60 +1031,173 @@ def start_interview(
     }
 
     # --------------------------------------------------------
-    # Generate first question
+    # Generate the first actual interview question.
+    # --------------------------------------------------------
+        # --------------------------------------------------------
+    # Load latest candidate profile for resume-aware Question #1.
     # --------------------------------------------------------
 
-    formatted_prompt = INTERVIEW_PROMPT.format(
-        subject=session.current_subject
+    profile_record = (
+        db.query(CandidateProfileRecord)
+        .join(
+            Resume,
+            CandidateProfileRecord.resume_id == Resume.id,
+        )
+        .filter(
+            Resume.user_id == current_user.id,
+        )
+        .order_by(
+            Resume.uploaded_at.desc()
+        )
+        .first()
     )
 
-    response = session.agent.invoke(
+    candidate_profile = None
 
-        {
-            "messages": [
+    if profile_record:
+        try:
+            candidate_profile = get_candidate_profile(
+                db,
+                profile_record.resume_id,
+            )
 
-                {
-                    "role": "system",
-                    "content": formatted_prompt
-                },
+        except Exception:
+            print(
+                "\nCandidate profile could not be loaded "
+                "for resume-aware Question #1."
+            )
 
-                {
-                    "role": "user",
-                    "content": (
-                        "Start the interview with a warm "
-                        "greeting and ask the first question "
-                        f"about {session.current_subject}. "
-                        "Keep it SHORT."
-                    )
-                }
+            traceback.print_exc()
 
-            ]
-        },
+            candidate_profile = None
 
-        config=config
+    # --------------------------------------------------------
+    # Generate Question #1.
+    #
+    # Preferred path:
+    #   CandidateProfile -> Resume-aware generator
+    #
+    # Fallback:
+    #   Existing LangGraph interviewer
+    # --------------------------------------------------------
 
-    )
+    question = None
 
-    content = response["messages"][-1].content
+    if candidate_profile:
 
-    if isinstance(content, list):
+        try:
+            question = build_resume_aware_question(
+                profile=candidate_profile,
+                subject=session.current_subject,
+            )
 
-        question = "".join(
+        except Exception as error:
 
-            part["text"]
+            if is_groq_rate_limit_error(error):
+                print(
+                    "\nGroq rate limit reached while generating "
+                    "resume-aware Question #1."
+                )
 
-            for part in content
+            else:
+                print(
+                    "\nResume-aware Question #1 generation failed."
+                )
+                traceback.print_exc()
 
-            if part.get("type") == "text"
+            question = None
 
+    # --------------------------------------------------------
+    # Existing generic LangGraph path remains the fallback.
+    # --------------------------------------------------------
+
+    if not question:
+
+        formatted_prompt = INTERVIEW_PROMPT.format(
+            subject=session.current_subject
         )
 
-    else:
+        try:
 
-        question = content
+            response = session.agent.invoke(
 
+                {
+                    "messages": [
+
+                        {
+                            "role": "system",
+                            "content": formatted_prompt
+                        },
+
+                        {
+                            "role": "user",
+                            "content": (
+                                "Start the technical interview by asking "
+                                "the first question about "
+                                f"{session.current_subject}. "
+                                "Do not give a greeting or preamble. "
+                                "Ask one clear, concise question. "
+                                "Keep it SHORT."
+                            )
+                        }
+
+                    ]
+                },
+
+                config=config
+
+            )
+
+            question = extract_message_content(
+                response["messages"][-1].content
+            )
+
+            if not question:
+                raise RuntimeError(
+                    "The first interview question was empty."
+                )
+
+        except Exception as error:
+
+            if is_groq_rate_limit_error(error):
+
+                print(
+                    "\nGroq rate limit reached while generating "
+                    "the first interview question."
+                )
+
+                question = (
+                    "Let's begin with the fundamentals. "
+                    f"Can you explain a key concept related to "
+                    f"{session.current_subject} and give a practical example?"
+                )
+
+            else:
+
+                # Keep the interview prepared but not active so
+                # the candidate can safely retry.
+                interview.status = "pending"
+                interview.started_at = None
+                interview.expires_at = None
+
+                db.commit()
+
+                session.started_at = None
+                session.expires_at = None
+                session.question_count = 0
+                session.stage = "welcome"
+
+                traceback.print_exc()
+
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        "The interview was prepared, but the first "
+                        "question could not be generated. Please retry."
+                    ),
+                ) from error
     # --------------------------------------------------------
-    # Save first question
+    # Save first question.
     # --------------------------------------------------------
 
     question_record = InterviewQuestion(
@@ -869,19 +1213,11 @@ def start_interview(
     )
 
     db.add(question_record)
-
     db.commit()
 
-    # ========================================================
-    # NEW:
-    # Send server expiry timestamp to frontend.
-    #
-    # IMPORTANT:
-    # end_time exists HERE because it was created inside
-    # start_interview().
-    #
-    # This header MUST NOT be used in submit_answer().
-    # ========================================================
+    # --------------------------------------------------------
+    # Return first question and server expiry timestamp.
+    # --------------------------------------------------------
 
     return StreamingResponse(
 
@@ -895,12 +1231,15 @@ def start_interview(
 
             "X-Interview-Complete": "false",
 
+            "X-Interview-Stage": "active",
+
             "X-Interview-Expires-At":
                 end_time.isoformat(),
 
         }
 
     )
+
 
 
 # ============================================================
@@ -1181,6 +1520,28 @@ async def submit_answer(
     # Make sure an interview exists
     # --------------------------------------------------------
 
+    if session.stage != "active" or session.question_count < 1:
+
+        return StreamingResponse(
+
+            stream_audio(
+                "The interview has not started yet. Please click I'm Ready to begin."
+            ),
+
+            media_type="text/plain",
+
+            headers={
+
+                "X-Question-Number": "0",
+
+                "X-Interview-Complete": "false",
+
+                "X-Interview-Stage": "welcome",
+
+            }
+
+        )
+
     if session.interview_id is None:
 
         return StreamingResponse(
@@ -1384,9 +1745,7 @@ async def submit_answer(
 
     db.commit()
 
-
     # ========================================================
-    # NEW PHASE 4.1:
     # Analyze and persist the quality of this answer.
     # ========================================================
 
@@ -1447,70 +1806,10 @@ async def submit_answer(
 
     db.commit()
 
-
-
-
-
-    # --------------------------------------------------------
-    # Add answer to LangGraph
-    # --------------------------------------------------------
-    # NEW:
-    # A Groq rate limit must not break the interview.
-    # Persisted DB data remains available as a fallback.
-    # --------------------------------------------------------
-
-    config = {
-
-        "configurable": {
-
-            "thread_id":
-                session.thread_id
-
-        }
-
-    }
-
-    try:
-
-        session.agent.invoke(
-
-            {
-
-                "messages": [
-
-                    {
-
-                        "role": "user",
-
-                        "content": answer
-
-                    }
-
-                ]
-
-            },
-
-            config=config
-
-        )
-
-    except Exception as error:
-
-        if is_groq_rate_limit_error(error):
-
-            print(
-                "\nGroq rate limit reached while updating interview "
-                "memory. Continuing with persisted interview data."
-            )
-
-        else:
-
-            raise
-
     # ========================================================
     # IMPORTANT:
     #
-    # We check expiration AFTER saving the answer.
+    # Check expiration AFTER saving the answer and its analysis.
     # ========================================================
 
     if is_interview_expired(session):
@@ -1559,11 +1858,103 @@ async def submit_answer(
     session.question_count += 1
 
     # ========================================================
-    # NEW PHASE 4.1 + PHASE 4.2:
-    # Use persisted response analysis to guide difficulty.
+    # PHASE 4.3:
+    # Load the latest persisted candidate profile.
     # ========================================================
 
-    analysis_context = f"""
+    profile_record = (
+        db.query(CandidateProfileRecord)
+        .join(
+            Resume,
+            CandidateProfileRecord.resume_id == Resume.id,
+        )
+        .filter(
+            Resume.user_id == current_user.id,
+        )
+        .order_by(
+            Resume.uploaded_at.desc()
+        )
+        .first()
+    )
+
+    candidate_profile = None
+
+    if profile_record:
+        try:
+            candidate_profile = get_candidate_profile(
+                db,
+                profile_record.resume_id,
+            )
+
+        except Exception:
+            print(
+                "\nCandidate profile could not be loaded "
+                "for resume-aware follow-up."
+            )
+
+            traceback.print_exc()
+
+            candidate_profile = None
+
+    # ========================================================
+    # PHASE 4.3:
+    # Generate the next response using the resume-aware service
+    # when a persisted candidate profile exists.
+    # ========================================================
+
+    question = None
+    resume_followup_generated = False
+    langgraph_generated = False
+
+    if candidate_profile:
+
+        try:
+            question = build_resume_aware_followup(
+                profile=candidate_profile,
+                subject=session.current_subject,
+                previous_question=current_question.question_text,
+                answer=answer,
+                analysis_data=analysis_data,
+            )
+
+            resume_followup_generated = bool(question)
+
+        except Exception as error:
+
+            if is_groq_rate_limit_error(error):
+                print(
+                    "\nGroq rate limit reached while generating "
+                    "resume-aware follow-up."
+                )
+
+            else:
+                print(
+                    "\nResume-aware follow-up generation failed."
+                )
+                traceback.print_exc()
+
+            question = None
+
+    # ========================================================
+    # Fallback:
+    # Use the existing LangGraph adaptive interviewer when a
+    # resume-aware follow-up cannot be generated.
+    # ========================================================
+
+    config = {
+
+        "configurable": {
+
+            "thread_id":
+                session.thread_id
+
+        }
+
+    }
+
+    if not question:
+
+        analysis_context = f"""
 PRIVATE RESPONSE ANALYSIS:
 
 Relevance:
@@ -1588,10 +1979,16 @@ Difficulty recommendation:
 {analysis_data["difficulty_recommendation"]}
 """
 
-    prompt = f"""
+        prompt = f"""
 The candidate just answered the previous interview question.
 
-Look at their ACTUAL answer above.
+PREVIOUS INTERVIEW QUESTION:
+{current_question.question_text}
+
+CANDIDATE'S ACTUAL ANSWER:
+{answer}
+
+Look at the candidate's actual answer above.
 
 Do NOT assume or make up what they said.
 
@@ -1604,93 +2001,144 @@ Rules:
 1. Briefly acknowledge what they ACTUALLY said.
 2. Ask one concise follow-up question.
 3. Build the question from their REAL response.
-4. Use the private response analysis to choose an
+4. Use the previous interview question to understand the
+   context of their answer.
+5. Use the private response analysis to choose an
    appropriate difficulty.
-5. The difficulty recommendation was calculated by the backend
+6. The difficulty recommendation was calculated by the backend
    from the four quality scores.
-6. Increase difficulty when the analysis recommends "increase".
-7. Maintain difficulty when the analysis recommends "maintain".
-8. Simplify or reinforce fundamentals when the analysis
+7. Increase difficulty when the analysis recommends "increase".
+8. Maintain difficulty when the analysis recommends "maintain".
+9. Simplify or reinforce fundamentals when the analysis
    recommends "decrease".
-9. Explore a knowledge gap when doing so is useful.
-10. Do not expose scores or internal analysis to the candidate.
-11. Do not mention question numbers.
-12. Do not mention timers or interview duration.
-13. Keep the TOTAL response concise, preferably under 3 sentences.
+10. Explore a knowledge gap when doing so is useful.
+11. Do not expose scores or internal analysis to the candidate.
+12. Do not mention question numbers.
+13. Do not mention timers or interview duration.
+14. Keep the TOTAL response concise, preferably under 3 sentences.
 
 Be conversational and adaptive.
 """
 
-    try:
+        try:
 
-        response = session.agent.invoke(
+            response = session.agent.invoke(
 
-            {
+                {
 
-                "messages": [
+                    "messages": [
 
-                    {
+                        {
 
-                        "role": "user",
+                            "role": "user",
 
-                        "content": prompt
+                            "content": prompt
 
-                    }
+                        }
 
-                ]
+                    ]
 
-            },
+                },
 
-            config=config
+                config=config
 
-        )
-
-        question = extract_message_content(
-            response["messages"][-1].content
-        )
-
-    except Exception as error:
-
-        if not is_groq_rate_limit_error(error):
-
-            raise
-
-        # ====================================================
-        # NEW:
-        # Difficulty-aware fallback when Groq is rate-limited.
-        # ====================================================
-
-        print(
-            "\nGroq rate limit reached while generating the next question."
-        )
-
-        recommendation = (
-            analysis_data["difficulty_recommendation"]
-        )
-
-        if recommendation == "increase":
-
-            question = (
-                "Good answer. Let’s go one level deeper: "
-                "can you explain the trade-offs involved and give a practical example?"
             )
 
-        elif recommendation == "decrease":
-
-            question = (
-                "Let’s revisit the basics. "
-                "Can you explain the core concept in simple terms and give a small example?"
+            question = extract_message_content(
+                response["messages"][-1].content
             )
 
-        else:
+            if not question:
+                raise RuntimeError(
+                    "The next interview question was empty."
+                )
 
-            question = (
-                "Good. To build on that, can you explain how this concept "
-                "works in a practical example?"
+            langgraph_generated = True
+
+        except Exception as error:
+
+            if not is_groq_rate_limit_error(error):
+                raise
+
+            # ====================================================
+            # Difficulty-aware fallback when Groq is rate-limited.
+            # ====================================================
+
+            print(
+                "\nGroq rate limit reached while generating the next question."
             )
+
+            recommendation = (
+                analysis_data["difficulty_recommendation"]
+            )
+
+            if recommendation == "increase":
+
+                question = (
+                    "Good answer. Let’s go one level deeper: "
+                    "can you explain the trade-offs involved and give a practical example?"
+                )
+
+            elif recommendation == "decrease":
+
+                question = (
+                    "Let’s revisit the basics. "
+                    "Can you explain the core concept in simple terms and give a small example?"
+                )
+
+            else:
+
+                question = (
+                    "Good. To build on that, can you explain how this concept "
+                    "works in a practical example?"
+                )
 
     # ========================================================
-    # Save next question
+    # PHASE 4.3:
+    # Synchronize a resume-generated follow-up with LangGraph memory.
+    #
+    # The resume-aware service generates the interviewer response
+    # outside LangGraph. We therefore record both the candidate's
+    # answer and generated interviewer response directly in the
+    # existing thread without making another LLM call.
+    #
+    # The generic LangGraph path already persists its own turn through
+    # invoke(), so it does not receive an additional memory write.
+    # ========================================================
+
+    if resume_followup_generated or not langgraph_generated:
+
+        try:
+            session.agent.update_state(
+                config,
+                {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": answer,
+                        },
+                        {
+                            "role": "assistant",
+                            "content": question,
+                        },
+                    ]
+                },
+            )
+
+        except Exception as error:
+
+            print(
+                "\nLangGraph memory synchronization warning."
+            )
+
+            traceback.print_exc()
+
+    # When the generic LangGraph path succeeds, invoke() already persisted
+    # the turn. When a fallback response is used, the block above records
+    # the candidate answer and fallback response without another LLM call.
+
+    # ========================================================
+    # Save next question.
     # ========================================================
 
     next_question_record = InterviewQuestion(

@@ -96,6 +96,31 @@
                 0 14px 35px rgba(99, 102, 241, 0.25);
         }
 
+        .resume-dropzone {
+            transition:
+                border-color 0.2s ease,
+                background 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .resume-dropzone.dragover {
+            border-color: rgba(129, 140, 248, 0.85);
+            background: rgba(99, 102, 241, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .action-disabled {
+            opacity: 0.48;
+            cursor: not-allowed;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .resume-status-card {
+            border-color: rgba(129, 140, 248, 0.22);
+            background: rgba(99, 102, 241, 0.06);
+        }
+
         .hidden {
             display: none !important;
         }
@@ -240,7 +265,8 @@
                         <button
                             id="heroStartBtn"
                             type="button"
-                            class="start-btn shrink-0 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3.5 font-bold"
+                            disabled
+                            class="start-btn action-disabled shrink-0 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3.5 font-bold"
                         >
 
                             <i class="fas fa-microphone mr-2"></i>
@@ -346,6 +372,167 @@
                         </div>
 
                     </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- RESUME PROFILE -->
+
+            <section class="mb-8">
+
+                <div class="glass rounded-3xl p-6 sm:p-8">
+
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+
+                        <div>
+
+                            <p class="text-xs uppercase tracking-[0.18em] text-indigo-400 mb-2">
+                                Resume profile
+                            </p>
+
+                            <h2 class="font-space text-2xl font-bold">
+                                Upload your resume
+                            </h2>
+
+                            <p class="text-sm text-zinc-500 mt-2 max-w-2xl leading-6">
+                                Your resume is used to personalize the interviewer, generate questions from your actual projects and skills, and create relevant follow-ups.
+                            </p>
+
+                        </div>
+
+                        <div class="inline-flex items-center gap-2 rounded-full border border-yellow-500/20 bg-yellow-500/5 px-3 py-1.5 text-xs text-yellow-300">
+                            <i class="fas fa-shield-halved"></i>
+                            PDF only · max 5 MB
+                        </div>
+
+                    </div>
+
+
+                    <div class="mt-6 grid grid-cols-1 xl:grid-cols-[1fr_0.8fr] gap-4">
+
+                        <div
+                            id="resumeDropzone"
+                            class="resume-dropzone rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center cursor-pointer"
+                            role="button"
+                            tabindex="0"
+                        >
+
+                            <div class="mx-auto w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+                                <i class="fas fa-file-arrow-up text-xl text-indigo-400"></i>
+                            </div>
+
+                            <p class="font-semibold mt-4">
+                                Drop your resume here
+                            </p>
+
+                            <p class="text-sm text-zinc-500 mt-1">
+                                or choose a PDF from your device
+                            </p>
+
+                            <button
+                                id="resumeBrowseBtn"
+                                type="button"
+                                class="mt-5 rounded-xl border border-zinc-700 bg-zinc-900/70 px-4 py-2.5 text-sm font-semibold hover:border-indigo-400/40 hover:text-white transition"
+                            >
+                                <i class="fas fa-folder-open mr-2"></i>
+                                Choose PDF
+                            </button>
+
+                            <input
+                                id="resumeInput"
+                                type="file"
+                                accept="application/pdf,.pdf"
+                                class="hidden"
+                            >
+
+                            <p
+                                id="resumeFileName"
+                                class="text-xs text-zinc-500 mt-4 truncate"
+                            >
+                                No file selected
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            id="resumeStatusCard"
+                            class="resume-status-card rounded-2xl border p-5"
+                        >
+
+                            <div class="flex items-start gap-3">
+
+                                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                    <i
+                                        id="resumeStatusIcon"
+                                        class="fas fa-file-circle-question text-indigo-400"
+                                    ></i>
+                                </div>
+
+                                <div class="min-w-0">
+
+                                    <p
+                                        id="resumeStatusTitle"
+                                        class="font-semibold text-sm"
+                                    >
+                                        Resume required
+                                    </p>
+
+                                    <p
+                                        id="resumeStatusText"
+                                        class="text-xs text-zinc-500 mt-1 leading-5"
+                                    >
+                                        Upload a PDF before starting a resume-based interview.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="mt-5 rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
+
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-xs text-zinc-500">Selected file</span>
+                                    <span
+                                        id="resumeSelectedSize"
+                                        class="text-xs text-zinc-600"
+                                    >
+                                        --
+                                    </span>
+                                </div>
+
+                                <p
+                                    id="resumeServerFile"
+                                    class="text-sm text-zinc-300 mt-2 truncate"
+                                >
+                                    No uploaded resume
+                                </p>
+
+                            </div>
+
+
+                            <button
+                                id="resumeUploadBtn"
+                                type="button"
+                                disabled
+                                class="action-disabled mt-4 w-full rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-3 text-sm font-bold"
+                            >
+                                <i class="fas fa-cloud-arrow-up mr-2"></i>
+                                Upload & Build Profile
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <p
+                        id="resumeUploadMessage"
+                        class="hidden text-sm mt-4 rounded-xl border px-4 py-3"
+                    ></p>
 
                 </div>
 
@@ -595,7 +782,8 @@
                     <button
                         id="startInterviewBtn"
                         type="button"
-                        class="start-btn w-full rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-4 font-bold"
+                        disabled
+                        class="start-btn action-disabled w-full rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-4 font-bold"
                     >
 
                         <i class="fas fa-play mr-2"></i>
@@ -732,8 +920,12 @@
     </div>
 
 
-    <script src="dashboard.js?v=dashboard3"></script>
+    <script src="dashboard.js?v=resume1"></script>
 
 </body>
 
 </html>
+
+
+
+================================================================================
